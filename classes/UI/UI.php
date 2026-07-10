@@ -23,11 +23,6 @@ class UI {
     <meta name="description" content="Shows the live status of Great Britain’s electric power transmission network">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="fediverse:creator" content="@katemorley@hachyderm.io">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="National Grid: Live">
-    <meta name="twitter:description" content="Shows the live status of Great Britain’s electric power transmission network">
-    <meta name="twitter:image" content="https://grid.iamkate.com/banner.png">
-    <meta name="twitter:site" content="@KateRoseMorley">
     <meta property="og:url" content="https://grid.iamkate.com/">
     <meta property="og:type" content="website">
     <meta property="og:title" content="National Grid: Live">
