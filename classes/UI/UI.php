@@ -13,9 +13,12 @@ class UI {
    * @param State $state The state
    */
   public static function output(State $state): void {
+    $stylesheetModified = filemtime(__DIR__ . '/../../public/grid.css');
+    $javascriptModified = filemtime(__DIR__ . '/../../public/grid.js');
+
 ?>
 <!DOCTYPE html>
-<html lang="en-gb">
+<html lang="en-gb" data-version="<?= max($stylesheetModified, $javascriptModified) ?>">
   <head>
     <title>
       National Grid: Live
@@ -30,10 +33,10 @@ class UI {
     <link rel="canonical" href="https://grid.iamkate.com/">
     <link rel="preload" href="proza-regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="proza-light.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="grid.css?<?= filemtime(__DIR__ . '/../../public/grid.css') ?>" type="text/css">
+    <link rel="stylesheet" href="grid.css?<?= $stylesheetModified ?>" type="text/css">
     <link rel="icon" href="favicon.png" type="image/png">
     <link rel="icon" href="favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
-    <script src="grid.js?<?= filemtime(__DIR__ . '/../../public/grid.js') ?>" defer></script>
+    <script src="grid.js?<?= $javascriptModified ?>" defer></script>
   </head>
   <body>
     <header>

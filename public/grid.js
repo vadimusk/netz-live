@@ -234,8 +234,12 @@ function update(unscheduled) {
   if (document.visibilityState === 'visible') {
     fetch('?v=' + time).then(response => response.text()).then(html => {
       let update = parser.parseFromString(html, 'text/html')
-      let timestamp = update.querySelector('time').dateTime
 
+      if (update.documentElement.dataset.version > document.documentElement.dataset.version) {
+        location.reload()
+      }
+
+      let timestamp = update.querySelector('time').dateTime
       if (timestamp > updated) {
         updated = timestamp
 
