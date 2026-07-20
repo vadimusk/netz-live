@@ -16,7 +16,7 @@ class Tables {
 
 ?>
             <h3>Generation by type</h3>
-            <table class="sources">
+            <table>
 <?php
 
     $map = $datum->types;
@@ -27,7 +27,7 @@ class Tables {
 ?>
             </table>
             <h3>Generation by source</h3>
-            <table class="sources">
+            <table>
 <?php
 
     $map = $datum->generation;
@@ -38,7 +38,7 @@ class Tables {
 ?>
             </table>
             <h3>Interconnectors</h3>
-            <table class="sources transfers">
+            <table class="transfers">
 <?php
 
     $map = $datum->interconnectors;
@@ -49,7 +49,7 @@ class Tables {
 ?>
             </table>
             <h3>Storage</h3>
-            <table class="sources transfers">
+            <table class="transfers">
 <?php
 
     $map = $datum->storage;

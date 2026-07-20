@@ -34,7 +34,7 @@ class Panel {
           <div>
             <?php PieChart::output($average); ?>
           </div>
-          <div>
+          <div class="sources">
 <?php Tables::output($average); ?>
           </div>
           <div>

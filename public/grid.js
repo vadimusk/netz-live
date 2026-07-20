@@ -11,7 +11,7 @@ const LABELS = {
   gas: 'Gas',
   solar: 'Solar',
   wind: 'Wind',
-  hydro: 'Hydroelectric',
+  hydro: 'Hydro',
   nuclear: 'Nuclear',
   biomass: 'Biomass',
   belgium: 'Belgium',
@@ -20,19 +20,18 @@ const LABELS = {
   ireland: 'Ireland',
   netherlands: 'Netherlands',
   norway: 'Norway',
-  pumped: 'Pumped storage',
+  pumped: 'Pumped',
 }
 
 const KEY_MARGIN = 8
 
-const IDS_TO_UPDATE = [
-  'status',
-  'latest',
-  'tab-panel-day',
-  'tab-panel-week',
-  'tab-panel-year',
-  'tab-panel-all',
-  'transition'
+const ELEMENTS_TO_UPDATE = [
+  '#live',
+  '#tab-panel-day',
+  '#tab-panel-week',
+  '#tab-panel-year',
+  '#tab-panel-all',
+  'footer'
 ]
 
 let key = document.createElement('div')
@@ -243,9 +242,11 @@ function update(unscheduled) {
       if (timestamp > updated) {
         updated = timestamp
 
-        IDS_TO_UPDATE.forEach(id => document.getElementById(id).replaceChildren(
-          ...update.getElementById(id).children
-        ))
+        ELEMENTS_TO_UPDATE.forEach(
+          selector => document.querySelector(selector).replaceChildren(
+            ...update.querySelector(selector).children
+          )
+        )
 
         hideGraphKey()
 

@@ -51,23 +51,24 @@ class UI {
       </p>
     </header>
     <main>
-      <div id="status" class="columns">
-        <section>
+      <div id="live">
+        <div>
 <?php Status::output($state->latest, Status::time($state->time), true); ?>
-        </section>
-        <section>
 <?php Equation::output($state->latest, true); ?>
-        </section>
-      </div>
+        </div>
+        <div class="sources">
 <?php Latest::output($state->latest); ?>
+        </div>
+        <?php PieChart::output($state->latest); ?>
+      </div>
 <?php Tabs::output($state); ?>
-      <div class="columns">
+    </main>
+    <footer>
 <?php Transition::output($state); ?>
 <?php About::output($state); ?>
-      </div>
-    </main>
+    </footer>
     <dialog>
-      <h2></h2>
+      <h2>Help</h2>
       <form method="dialog"><button><svg viewBox="0 0 30 30"><path d="M6,6 24,24"/><path d="M6,24 24,6"/></svg></button></form>
       <div></div>
     </dialog>
