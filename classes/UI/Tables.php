@@ -15,8 +15,8 @@ class Tables {
     $demand = $datum->getTotal();
 
 ?>
-            <h3>Generation by type</h3>
-            <table>
+              <h3>Generation by type</h3>
+              <table>
 <?php
 
     $map = $datum->types;
@@ -25,9 +25,9 @@ class Tables {
     }
 
 ?>
-            </table>
-            <h3>Generation by source</h3>
-            <table>
+              </table>
+              <h3>Generation by source</h3>
+              <table>
 <?php
 
     $map = $datum->generation;
@@ -36,9 +36,9 @@ class Tables {
     }
 
 ?>
-            </table>
-            <h3>Interconnectors</h3>
-            <table class="transfers">
+              </table>
+              <h3>Interconnectors</h3>
+              <table class="transfers">
 <?php
 
     $map = $datum->interconnectors;
@@ -47,9 +47,9 @@ class Tables {
     }
 
 ?>
-            </table>
-            <h3>Storage</h3>
-            <table class="transfers">
+              </table>
+              <h3>Storage</h3>
+              <table class="transfers">
 <?php
 
     $map = $datum->storage;
@@ -58,7 +58,7 @@ class Tables {
     }
 
 ?>
-            </table>
+              </table>
 <?php
  }
 
@@ -79,7 +79,7 @@ class Tables {
     bool   $isTotal = false
   ): void {
 ?>
-              <tr><td class="<?= $source ?>"></td><td><?= $description ?></td><td><?= ($isTotal ? Value::formatTotalPower($power) : Value::formatPower($power)) ?></td><td><?= Value::formatPercentage($power / $demand) ?></td></tr>
+                <tr><td class="<?= $source ?>"></td><td><?= $description ?></td><td><?= ($isTotal ? Value::formatTotalPower($power) : Value::formatPower($power)) ?></td><td><?= Value::formatPercentage($power / $demand) ?></td></tr>
 <?php
   }
 }

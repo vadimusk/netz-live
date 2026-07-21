@@ -34,8 +34,10 @@ class Panel {
           <div>
             <?php PieChart::output($average); ?>
           </div>
-          <div class="sources">
+          <div>
+            <div class="sources">
 <?php Tables::output($average); ?>
+            </div>
           </div>
           <div>
             <h3>Price per MWh</h3>

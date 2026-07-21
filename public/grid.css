@@ -25,7 +25,7 @@
   --help-text: #fff;
   --unit-opacity: 0.4;
   --heading-unit-opacity: 0.6;
-  --pie-chart-radius: 149px;
+  --pie-chart-radius: 145px;
   --graph-line: #bbb;
   --graph-highlight: #0001;
   --key-line: #999;
@@ -299,7 +299,7 @@ a {
 }
 
 [role="tabpanel"] {
-  --table-width: 300px;
+  --table-width: 305px;
   display: grid;
   gap: 1rem 3rem;
 
@@ -441,11 +441,20 @@ dl {
 }
 
 .sources {
-  td + td {
-    color: var(--content-text);
+  display: grid;
+  grid-template-columns: max-content 1fr repeat(2, max-content);
+
+  table, thead, tbody, tr {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column-end: span 4;
   }
 
   tr {
+    display: grid;
+    grid-template-columns: subgrid;
+    gap: 0.5rem;
+
     :nth-child(3), :nth-child(4) {
       text-align: right;
       white-space: nowrap;
@@ -462,9 +471,15 @@ dl {
     }
   }
 
+  th, td {
+    padding: 0;
+  }
+
+  td + td {
+    color: var(--content-text);
+  }
+
   #live & {
-    display: grid;
-    grid-template-columns: max-content 1fr repeat(2, max-content);
     gap: var(--gap);
 
     @media screen and (min-width:768px) {
@@ -512,12 +527,6 @@ dl {
       color: var(--heading-background);
     }
 
-    :is(table, thead, tbody, tr) {
-      display: grid;
-      grid-template-columns: subgrid;
-      grid-column-end: span 4;
-    }
-
     table {
       align-content: start;
       overflow: hidden;
@@ -534,9 +543,6 @@ dl {
     }
 
     tr {
-      display: grid;
-      grid-template-columns: subgrid;
-      gap: 0.5rem;
       padding: 0.5rem;
     }
 
@@ -544,9 +550,8 @@ dl {
       padding-top: 0;
     }
 
-    :is(th, td) {
+    th, td {
       grid-row: 1;
-      padding: 0;
       line-height: 30px;
 
       &:nth-child(2) {
@@ -588,44 +593,29 @@ dl {
   }
 
   [role="tabpanel"] & {
-    tr:last-child td {
-      padding-bottom: 0;
+    > * {
+      grid-column: 1 / -1;
+    }
+
+    tr + tr {
+      padding-top: 1em;
     }
 
     td {
-      vertical-align: top;
+      line-height: 1;
 
-      &:not(nth-child(2)) {
-        width: 0;
-      }
-
-      &:nth-child(1) {
-        padding: 0 0 1em;
-        background: transparent;
-
-        &::after {
-          content: '';
-          display: block;
-          width: 1em;
-          height: 1em;
-          background: currentColor;
-        }
+      &:nth-child(1)::after {
+        content: '';
+        display: block;
+        width: 1em;
+        height: 1em;
+        background: currentColor;
       }
 
       .transfers &:nth-child(1)::after {
         border: 2px solid;
         background: transparent;
       }
-
-      &:nth-child(2) {
-        width: 100%;
-        padding: 0 0 1em 0.5em;
-      }
-
-      &:nth-child(3), &:nth-child(4) {
-        padding: 0 0 1em 0.75em;
-      }
-
     }
   }
 }
@@ -673,7 +663,7 @@ dl {
 
     div:nth-child(2) {
       display: block;
-      width: 33%;
+      width: 35%;
       height: 2px;
       margin: 0.25em 0;
       background: currentColor;
@@ -681,8 +671,6 @@ dl {
   }
 
   svg {
-    width: 100%; /* required to stop Safari shrinking the pie chart to the width of the text */
-
     path {
       fill: currentColor;
       stroke: var(--content-background);
@@ -804,6 +792,14 @@ dl {
       font-size: 16px;
       font-weight: 400;
       text-align: center;
+    }
+
+    table {
+      grid-template-columns: max-content 1fr max-content;
+    }
+
+    tr {
+      gap: 7px;
     }
 
     td:nth-child(1)::after {
