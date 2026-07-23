@@ -34,11 +34,13 @@ class Demand extends Map {
 
     $this->generation = $fossils + $renewables + $others;
 
-    $this->map[self::DEMAND]     = $this->generation + $transfers;
-    $this->map[self::FOSSILS]    = $fossils;
-    $this->map[self::RENEWABLES] = $renewables;
-    $this->map[self::OTHERS]     = $others;
-    $this->map[self::TRANSFERS]  = $transfers;
+    $this->map = [
+      self::DEMAND     => $this->generation + $transfers,
+      self::FOSSILS    => $fossils,
+      self::RENEWABLES => $renewables,
+      self::OTHERS     => $others,
+      self::TRANSFERS  => $transfers
+    ];
   }
 
   /**

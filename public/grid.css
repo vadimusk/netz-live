@@ -758,7 +758,7 @@ dl {
     margin: 0.5em 0;
   }
 
-  polyline {
+  path {
     fill: transparent;
     stroke: currentcolor;
     stroke-width: 2.5;

@@ -2,8 +2,12 @@
 
 namespace KateMorley\Grid\State;
 
-/** Represents a map from keys to values. */
-abstract class Map {
+/**
+ * Represents a map from keys to values.
+ *
+ * @implements \IteratorAggregate<string,float>
+ */
+abstract class Map implements \IteratorAggregate {
   public const KEYS = [];
 
   protected const KEY_COMPONENTS = [];
@@ -22,6 +26,11 @@ abstract class Map {
       ),
       static::KEY_COMPONENTS
     );
+  }
+
+  /** Returns an iterator over the keys and values. */
+  public function getIterator(): \Traversable {
+    yield from $this->map;
   }
 
   /**

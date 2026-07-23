@@ -25,7 +25,7 @@ class Axes {
       Datum::GENERATION,
       Datum::TRANSFERS,
       Datum::DEMAND
-    ] as $graph) {
+    ] as $map) {
       $minimums = [0];
       $maximums = [];
 
@@ -36,8 +36,8 @@ class Axes {
         $state->allTimeSeries
       ] as $series) {
         foreach ($series as $datum) {
-          $minimums[] = $datum->get($graph)->getMinimum();
-          $maximums[] = $datum->get($graph)->getMaximum();
+          $minimums[] = $datum->get($map)->getMinimum();
+          $maximums[] = $datum->get($map)->getMaximum();
         }
       }
 
@@ -65,7 +65,7 @@ class Axes {
         $step = 1;
       }
 
-      $this->setGraphAxis($graph, $minimum, $maximum, $step);
+      $this->setGraphAxis($map, $minimum, $maximum, $step);
     }
 
     $this->setGraphAxis(
@@ -82,46 +82,46 @@ class Axes {
   /**
    * Sets the axis details for a graph.
    *
-   * @param int   $graph   One of the Datum class constants identifying a graph
+   * @param int   $map     The map key
    * @param float $minimum The minimum
    * @param float $maximum The maximum
    * @param int   $step    The step size
    */
   private function setGraphAxis(
-    int   $graph,
+    int   $map,
     float $minimum,
     float $maximum,
     int   $step
   ): void {
-    $this->minimums[$graph] = $step * floor($minimum / $step);
-    $this->maximums[$graph] = $step * ceil($maximum  / $step);
-    $this->steps[$graph]    = $step;
+    $this->minimums[$map] = $step * floor($minimum / $step);
+    $this->maximums[$map] = $step * ceil($maximum  / $step);
+    $this->steps[$map] = $step;
   }
 
   /**
-   * Returns the minimum for the specified graph.
+   * Returns the minimum for a graph.
    *
-   * @param int $graph One of the Datum class constants identifying a graph
+   * @param int $map The map key
    */
-  public function getMinimum(int $graph): int {
-    return $this->minimums[$graph];
+  public function getMinimum(int $map): int {
+    return $this->minimums[$map];
   }
 
   /**
-   * Returns the maximum for the specified graph.
+   * Returns the maximum for a graph.
    *
-   * @param int $graph One of the Datum class constants identifying a graph
+   * @param int $map The map key
    */
-  public function getMaximum(int $graph): int {
-    return $this->maximums[$graph];
+  public function getMaximum(int $map): int {
+    return $this->maximums[$map];
   }
 
   /**
-   * Returns the step size for the specified graph.
+   * Returns the step size for a graph.
    *
-   * @param int $graph One of the Datum class constants identifying a graph
+   * @param int $map The map key
    */
-  public function getStep(int $graph): int {
-    return $this->steps[$graph];
+  public function getStep(int $map): int {
+    return $this->steps[$map];
   }
 }

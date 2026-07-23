@@ -155,7 +155,7 @@ function showGraphKey(e) {
   let transfers = graph.dataset.transfers === 'true'
   let prefix    = graph.dataset.prefix
   let suffix    = graph.dataset.suffix
-  let classes   = Array.from(graph.querySelectorAll('polyline')).map(
+  let classes   = Array.from(graph.querySelectorAll('path')).map(
     series => series.className.baseVal
   )
   let values    = e.target.dataset.values.split(' ')
