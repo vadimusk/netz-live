@@ -53,7 +53,7 @@ class Graph {
     self::outputValueAxis($minimum, $maximum, $step, $prefix, $suffix);
     self::outputTimeAxis($series, $timeStep, $timeFormat);
 
-    echo '<svg viewBox="0 0 ';
+    echo '<svg viewBox="-0.5 0 ';
     echo count($series);
     echo ' ';
     echo self::HEIGHT;
@@ -64,9 +64,7 @@ class Graph {
     echo '" preserveAspectRatio="none">';
     self::outputLines($series, $map, $minimum, $maximum - $minimum);
     self::outputOverlay($series, $map, $timeFormat, $decimalPlaces);
-    echo '</svg>';
-
-    echo "</div>\n";
+    echo "</svg></div>\n";
   }
 
   /**
@@ -97,7 +95,13 @@ class Graph {
       echo $prefix;
       echo number_format(abs($label));
       echo $suffix;
-      echo '</div><div></div>';
+      echo '</div><div';
+
+      if ($label === 0) {
+        echo ' class="axis"';
+      }
+
+      echo '></div>';
     }
 
     echo '</div>';
@@ -163,7 +167,7 @@ class Graph {
     }
 
     foreach ($lines as $key => $line) {
-      $line->path(0.5, $key);
+      $line->output($key);
     }
   }
 
@@ -181,6 +185,8 @@ class Graph {
     string $timeFormat,
     int    $decimalPlaces
   ): void {
+    echo '<g transform="translate(-0.5 0)">';
+
     $index = 0;
 
     foreach ($series as $time => $datum) {
@@ -199,5 +205,7 @@ class Graph {
 
       $index ++;
     }
+
+    echo '</g>';
   }
 }

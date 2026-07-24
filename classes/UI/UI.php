@@ -57,7 +57,7 @@ class UI {
 <?php Equation::output($state->latest, true); ?>
         </div>
         <div class="sources">
-<?php Latest::output($state->latest); ?>
+<?php Latest::output($state->latest, $state->pastDaySeries); ?>
         </div>
         <?php PieChart::output($state->latest); ?>
       </div>

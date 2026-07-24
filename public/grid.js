@@ -151,7 +151,7 @@ function showGraphKey(e) {
     return
   }
 
-  let graph     = e.target.parentNode.parentNode
+  let graph     = e.target.closest('.graph')
   let transfers = graph.dataset.transfers === 'true'
   let prefix    = graph.dataset.prefix
   let suffix    = graph.dataset.suffix

@@ -15,16 +15,21 @@ class Latest {
   /**
    * Outputs the latest data.
    *
-   * @param Datum $datum The datum
+   * @param Datum        $latest The latest datum
+   * @param array<Datum> $series The series to show in sparklines
    */
-  public static function output(Datum $datum): void {
-    $demand = $datum->getTotal();
+  public static function output(Datum $latest, array $series): void {
+    $sparklines = new Sparklines($series);
+
+    $demand = $latest->getTotal();
 
     self::outputTable(
       'fossils',
       'Fossil fuels',
-      $datum->types->get(Types::FOSSILS),
-      $datum->generation,
+      $latest->types->get(Types::FOSSILS),
+      $latest,
+      $sparklines,
+      Datum::GENERATION,
       [
         Generation::GAS  => '<p>Gas-fired power stations burn natural gas to drive a turbine. Most gas-fired power stations use the excess heat from burning the gas to produce steam to drive a second turbine. Burning natural gas causes carbon dioxide and other pollutants to be emitted, worsening the climate crisis and damaging human health.</p><p>In 2001 the European Union issued the Large Combustion Plant Directive, obliging power stations to limit their emissions or close by 2015. Most coal-fired power stations in Great Britain closed in response, with gas-fired power stations taking over as the largest source of Great Britain’s power.</p>'
       ],
@@ -34,8 +39,10 @@ class Latest {
     self::outputTable(
       'renewables',
       'Renewables',
-      $datum->types->get(Types::RENEWABLES),
-      $datum->generation,
+      $latest->types->get(Types::RENEWABLES),
+      $latest,
+      $sparklines,
+      Datum::GENERATION,
       [
         Generation::SOLAR => '<p>Solar panels generate power from the photovoltaic effect, where light falling on a material produces an electric current.</p><p>Despite Great Britain’s northerly latitude and frequently cloudy conditions, solar panels are still able to generate a useful amount of power. Rooftop solar panels on residential buildings have become increasingly popular as the price of solar panels has fallen.</p><p>Solar panels are connected to the local distribution network rather than the national transmission network, so their reported power generation is an estimate from National Grid ESO, based on weather conditions and observed transmission network demand.</p>',
         Generation::WIND  => '<p>Wind turbines generate power from the movement of air. Turbines can be located on land (onshore) or at sea (offshore). Offshore wind turbines benefit from higher and more consistent wind speeds.</p><p>Great Britain’s exposed position in the north-east Atlantic makes it one of the best locations in the world for wind power generation, and the shallow waters of the North Sea host several of the world’s largest offshore wind farms.</p><p>Onshore wind turbines in England and Wales (and some in Scotland) are connected to the local distribution network rather than the national transmission network, so their reported power generation is an estimate from National Grid ESO, based on weather conditions and observed transmission network demand. Offshore wind turbines (and many onshore wind turbines in Scotland) are connected to the transmission network and their power generation is measured directly.</p>',
@@ -47,8 +54,10 @@ class Latest {
     self::outputTable(
       'others',
       'Other sources',
-      $datum->types->get(Types::OTHERS),
-      $datum->generation,
+      $latest->types->get(Types::OTHERS),
+      $latest,
+      $sparklines,
+      Datum::GENERATION,
       [
         Generation::NUCLEAR => '<p>Nuclear power stations use the heat produced from the radioactive decay of uranium to produce steam to drive a turbine. The world’s first commercial nuclear power station, Calder Hall in Cumbria, started producing power on 27th August 1956.</p><p>The risk of accidents releasing radioactive material makes nuclear power controversial. Great Britain’s worst nuclear accident happened on 10th October 1957 when a reactor at Windscale (now known as Sellafield) in Cumbria caught fire. The accident is believed to have caused around 240 cases of cancer, about half of which were fatal. Decommissioning of the site is ongoing.</p><p>Great Britain’s nuclear programme has produced around 150,000 cubic metres of radioactive waste to date, most of which is stored in temporary facilities at Sellafield in Cumbria and Dounreay in Scotland. There are plans for a permanent disposal site deep underground, but it has been difficult to find a location suitable for storing radioactive waste for 100,000 years.</p>',
         Generation::BIOMASS => '<p>Biomass power stations burn plant material to produce steam to drive a turbine. Great Britain’s largest power station, Drax, is a former coal-fired power station converted to burn wood pellets.</p><p>Biomass power stations qualify for renewable energy subsidies (over £6bn so far in the case of Drax) because newly planted trees can absorb the carbon dioxide produced by burning wood from mature trees. However, this process can take decades, during which time the effects on atmospheric carbon dioxide levels are worse than those from burning fossil fuels.</p><p>Furthermore, Drax imports most of its wood pellets, and <a href=\'https://www.bbc.co.uk/news/science-environment-63089348\'>a BBC investigation</a> found that Drax was clearfelling irreplaceable old-growth forests in Canada.</p>'
@@ -59,8 +68,10 @@ class Latest {
     self::outputTable(
       'interconnectors transfers',
       'Interconnectors',
-      $datum->interconnectors->getTotal(),
-      $datum->interconnectors,
+      $latest->interconnectors->getTotal(),
+      $latest,
+      $sparklines,
+      Datum::TRANSFERS,
       [
         Interconnectors::BELGIUM     => '<p>There is one link between Great Britain and Belgium:</p><p>Nemo Link is a 1<abbr>GW</abbr> link between Richborough in England and Zeebrugge in Belgium. It entered service in 2019.</p>',
         Interconnectors::DENMARK     => '<p>There is one link between Great Britain and Denmark:</p><p>Viking Link is a 1.4<abbr>GW</abbr> link between Bicker Fen in England and Revsing in Denmark. It entered service in 2023.</p>',
@@ -75,8 +86,10 @@ class Latest {
     self::outputTable(
       'storage transfers',
       'Storage',
-      $datum->storage->getTotal(),
-      $datum->storage,
+      $latest->storage->getTotal(),
+      $latest,
+      $sparklines,
+      Datum::TRANSFERS,
       [
         Storage::PUMPED => '<p>Pumped hydroelectric storage systems use electricity when it is comparatively cheap to pump water from a lower reservoir into a higher reservoir. When electricity is comparatively expensive the water is released, driving turbines to produce power.</p><p>Negative values mean water is being pumped, while positive values mean power is being generated.</p>',
         'battery'       => '<p>Battery storage systems use electricity when it is comparatively cheap to charge a group of batteries. When electricity is comparatively expensive the batteries are discharged.</p><p>Several battery storage systems are in operation in Great Britain, but full reporting is not yet available: reports include discharging but not charging. As this would lead to double counting, with power being reported both when originally generated and when discharged from battery storage systems, battery storage data is not yet shown on this site.</p>'
@@ -91,24 +104,28 @@ class Latest {
    * @param string        $class       The type class
    * @param string        $description The type description
    * @param float         $total       The type total
-   * @param Map           $map         The map
-   * @param array<string> $keys        An array mapping keys to help
+   * @param Datum         $latest      The latest datum
+   * @param Sparklines    $sparklines  The Sparklines instance
+   * @param int           $map         The map key
+   * @param array<string> $help        An array mapping source keys to help
    * @param float         $demand      The total demand
    */
   private static function outputTable(
-    string $class,
-    string $description,
-    float $total,
-    Map $map,
-    array $keys,
-    float $demand
+    string     $class,
+    string     $description,
+    float      $total,
+    Datum      $latest,
+    Sparklines $sparklines,
+    int        $map,
+    array      $help,
+    float      $demand
   ): void {
 ?>
           <table class="<?= $class ?>">
             <thead>
 <?php
 
-    echo '              <tr><th><div></div></th><th>';
+    echo '              <tr><th></th><th>';
     echo $description;
     echo '</th><th>';
     echo Value::formatPower($total);
@@ -121,25 +138,33 @@ class Latest {
             <tbody>
 <?php
 
-    foreach ($keys as $key => $help) {
+    foreach ($help as $key => $content) {
       echo '              <tr><td class="';
       echo $key;
-      echo '"><div></div><td>';
+      echo '">';
+
+      if ($key === 'battery') {
+        echo '<svg></svg>';
+      } else {
+        $sparklines->output($key);
+      }
+
+      echo '<td>';
 
       if ($key === 'battery') {
         echo 'Batteries';
       } else {
-        echo $map::KEYS[$key];
+        echo $latest->get($map)::KEYS[$key];
       }
 
       echo ' <span data-help="';
-      echo $help;
+      echo $content;
       echo '"></span></td><td>';
 
       if ($key === 'battery') {
         echo '—';
       } else {
-        echo Value::formatPower($map->get($key));
+        echo Value::formatPower($latest->get($map)->get($key));
       }
 
       echo '</td><td>';
@@ -147,7 +172,7 @@ class Latest {
       if ($key === 'battery') {
         echo '—';
       } else {
-        echo Value::formatPercentage($map->get($key) / $demand);
+        echo Value::formatPercentage($latest->get($map)->get($key) / $demand);
       }
 
       echo "</td></tr>\n";

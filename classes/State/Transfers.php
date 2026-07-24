@@ -19,7 +19,7 @@ class Transfers extends Map {
     self::IRELAND     => 'Ireland',
     self::NETHERLANDS => 'Netherlands',
     self::NORWAY      => 'Norway',
-    self::PUMPED      => 'Pumped storage'
+    self::PUMPED      => 'Pumped'
   ];
 
   protected const KEY_COMPONENTS = [

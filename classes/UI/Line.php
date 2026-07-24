@@ -42,10 +42,9 @@ class Line {
   /**
    * Outputs the line as an SVG path element.
    *
-   * @param float  $x     The x co-ordinate of the first point
    * @param string $class An optional class for the path
    */
-  public function path(float $x, ?string $class = null): void {
+  public function output(?string $class = null): void {
     echo '<path';
 
     if ($class !== null) {
@@ -54,9 +53,7 @@ class Line {
       echo '"';
     }
 
-    echo ' d="m';
-    echo $x;
-    echo ' ';
+    echo ' d="m0 ';
     echo array_shift($this->offsets);
 
     while (count($this->offsets) > 0) {

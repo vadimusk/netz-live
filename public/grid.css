@@ -26,7 +26,8 @@
   --unit-opacity: 0.4;
   --heading-unit-opacity: 0.6;
   --pie-chart-radius: 145px;
-  --graph-line: #bbb;
+  --graph-axis: #ddd;
+  --graph-line: #eee;
   --graph-highlight: #0001;
   --key-line: #999;
   --table-stripe: #f8f8f8;
@@ -70,7 +71,8 @@
     --heading-background: #444;
     --selected-background: #222c;
     --help-background: #444;
-    --graph-line: #444;
+    --graph-axis: #444;
+    --graph-line: #333;
     --graph-highlight: #fff1;
     --key-line: #666;
     --unit-opacity: 0.6;
@@ -580,15 +582,46 @@ dl {
       font-weight: 400;
     }
 
-    td div {
-      width: 30px;
-      height: 30px;
+    td:nth-child(1) {
       background: currentColor;
-    }
 
-    .transfers td div {
-      background: var(--content-background);
-      border: 2px solid currentColor;
+      svg {
+        display: block;
+        width: 30px;
+        height: 30px;
+        margin-block: 1px -1px;
+      }
+
+      path {
+        fill: transparent;
+        stroke: var(--content-background);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .transfers & {
+        display: grid;
+        background: transparent;
+
+        &::before {
+          content: '';
+          grid-area: 1 / 1;
+          background: var(--graph-axis);
+          height: 2px;
+          margin-top: 15px;
+        }
+
+        svg {
+          grid-area: 1 / 1;
+          margin-block: 0;
+        }
+
+        path {
+          stroke: currentColor;
+        }
+      }
     }
   }
 
@@ -736,7 +769,11 @@ dl {
 
     > :nth-child(even) {
       margin-top: calc(0.5em - 1px);
-      border-top: 1px solid var(--graph-line);
+      border-top: 2px solid var(--graph-line);
+
+      &.axis {
+        border-color: var(--graph-axis);
+      }
     }
   }
 
