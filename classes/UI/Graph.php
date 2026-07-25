@@ -5,7 +5,7 @@ namespace KateMorley\Grid\UI;
 use KateMorley\Grid\State\Datum;
 use KateMorley\Grid\State\Kind;
 
-/** Outputs a graph. */
+/** A graph. */
 enum Graph: int {
   case Price      = 0;
   case Emissions  = 1;
@@ -21,6 +21,29 @@ enum Graph: int {
    * large as to increase the output size due to excessive precision.
    */
   private const HEIGHT = 500;
+
+  /** Returns the value prefix. */
+  public function prefix(): string {
+    return $this === self::Price ? '£' : '';
+  }
+
+  /** Returns the value suffix. */
+  public function suffix(): string {
+    return match ($this) {
+      self::Emissions => 'g',
+      self::Demand, self::Generation, self::Transfers  => 'GW',
+      default => ''
+    };
+  }
+
+  /** Returns the number of decimal places to show. */
+  public function decimalPlaces(): int {
+    return match ($this) {
+      self::Price, self::Generation, self::Transfers => 2,
+      self::Demand => 1,
+      self::Emissions, self::Visits => 0
+    };
+  }
 
   /**
    * Returns the classes for the lines.
@@ -65,8 +88,12 @@ enum Graph: int {
    */
   public function get(Datum $datum): array {
     return match ($this) {
-      self::Price => [$datum->price],
-      self::Emissions => [$datum->emissions],
+      self::Price => [
+        $datum->price
+      ],
+      self::Emissions => [
+        $datum->emissions
+      ],
       self::Demand => [
         round(Kind::Fossils->get($datum->sources), 1)
         + round(Kind::Renewables->get($datum->sources), 1)
@@ -85,46 +112,42 @@ enum Graph: int {
         fn ($source) => $source->get($datum->sources),
         Kind::Transfers->sources()
       ),
-      self::Visits => [$datum->visits]
+      self::Visits => [
+        $datum->visits
+      ]
     };
   }
 
   /**
    * Outputs a graph.
    *
-   * @param array<Datum> $series        The series
-   * @param Axes         $axes          The axes information
-   * @param string       $prefix        The value prefix
-   * @param string       $suffix        The value suffix
-   * @param int          $timeStep      The time step
-   * @param string       $timeFormat    The time format
-   * @param int          $decimalPlaces The number of decimal places for values
+   * @param array<Datum> $series     The series
+   * @param Axes         $axes       The axes information
+   * @param int          $timeStep   The time step
+   * @param string       $timeFormat The time format
    */
   public function output(
     array  $series,
     Axes   $axes,
-    string $prefix,
-    string $suffix,
     int    $timeStep,
-    string $timeFormat,
-    int    $decimalPlaces
+    string $timeFormat
   ): void {
     $minimum = $axes->getMinimum($this);
     $maximum = $axes->getMaximum($this);
     $step    = $axes->getStep($this);
 
     echo '<div class="graph" data-prefix="';
-    echo $prefix;
+    echo $this->prefix();
     echo '" data-suffix="';
-    echo $suffix;
+    echo $this->suffix();
     echo '"';
     if ($this === self::Transfers) {
       echo ' data-transfers="true"';
     }
     echo '>';
 
-    self::outputValueAxis($minimum, $maximum, $step, $prefix, $suffix);
-    self::outputTimeAxis($series, $timeStep, $timeFormat);
+    $this->outputValueAxis($minimum, $maximum, $step);
+    $this->outputTimeAxis($series, $timeStep, $timeFormat);
 
     echo '<svg viewBox="-0.5 0 ';
     echo count($series);
@@ -136,25 +159,21 @@ enum Graph: int {
     echo self::HEIGHT;
     echo '" preserveAspectRatio="none">';
     $this->outputLines($series, $minimum, $maximum - $minimum);
-    $this->outputOverlay($series, $timeFormat, $decimalPlaces);
+    $this->outputOverlay($series, $timeFormat);
     echo "</svg></div>\n";
   }
 
   /**
    * Outputs the value axis.
    *
-   * @param int    $minimum The minimum value
-   * @param int    $maximum The maximum value
-   * @param int    $step    The value step
-   * @param string $prefix  The value prefix
-   * @param string $suffix  The value suffix
+   * @param int $minimum The minimum value
+   * @param int $maximum The maximum value
+   * @param int $step    The value step
    */
-  private static function outputValueAxis(
-    int    $minimum,
-    int    $maximum,
-    int    $step,
-    string $prefix,
-    string $suffix
+  private function outputValueAxis(
+    int $minimum,
+    int $maximum,
+    int $step
   ): void {
     echo '<div>';
 
@@ -165,9 +184,9 @@ enum Graph: int {
         echo '−';
       }
 
-      echo $prefix;
+      echo $this->prefix();
       echo number_format(abs($label));
-      echo $suffix;
+      echo $this->suffix();
       echo '</div><div';
 
       if ($label === 0) {
@@ -187,7 +206,7 @@ enum Graph: int {
    * @param string       $step   The time step
    * @param string       $format The time format
    */
-  private static function outputTimeAxis(
+  private function outputTimeAxis(
     array  $series,
     string $step,
     string $format
@@ -216,11 +235,7 @@ enum Graph: int {
    * @param int          $minimum The minimum value
    * @param int          $range   The value range
    */
-  private function outputLines(
-    array $series,
-    int   $minimum,
-    int   $range
-  ): void {
+  private function outputLines(array $series, int $minimum, int $range): void {
     // avoid division by zero for new instances with only a single point
     if ($range === 0) {
       $range = 1;
@@ -245,15 +260,10 @@ enum Graph: int {
   /**
    * Outputs the overlay.
    *
-   * @param array<Datum> $series        The series
-   * @param string       $timeFormat    The time format
-   * @param int          $decimalPlaces The number of decimal places for values
+   * @param array<Datum> $series     The series
+   * @param string       $timeFormat The time format
    */
-  private function outputOverlay(
-    array  $series,
-    string $timeFormat,
-    int    $decimalPlaces
-  ): void {
+  private function outputOverlay(array $series, string $timeFormat): void {
     echo '<g transform="translate(-0.5 0)">';
 
     $index = 0;
@@ -267,7 +277,7 @@ enum Graph: int {
       echo date($timeFormat, $time);
       echo '" data-values="';
       echo implode(' ', array_map(
-        fn ($value) => number_format($value, $decimalPlaces),
+        fn ($value) => number_format($value, $this->decimalPlaces()),
         $this->get($datum)
       ));
       echo '"/>';
