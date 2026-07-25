@@ -3,7 +3,6 @@
 namespace KateMorley\Grid\UI;
 
 use KateMorley\Grid\State\State;
-use KateMorley\Grid\State\Datum;
 
 /** Outputs the about section. */
 class About {
@@ -26,7 +25,7 @@ class About {
         </p>
         <div class="visits-graph">
           <h3>Weekly visits</h3>
-          <?php Graph::output($state->pastYearSeries, new Axes($state), Datum::VISITS, '', '', 13, 'd/m/Y', 0); ?>
+          <?php Graph::Visits->output($state->pastYearSeries, new Axes($state), '', '', 13, 'd/m/Y', 0); ?>
         </div>
         <p>
           The data comes from the <a href="https://bmrs.elexon.co.uk/">Elexon Insights Solution</a>, the <a href="https://www.neso.energy/data-portal">National Energy System Operator Data Portal</a>, and the <a href="https://carbonintensity.org.uk/">Carbon Intensity API</a> (a project by the National Energy System Operator and the University Of Oxford Department Of Computer Science). <a href="https://www.elexon.co.uk/data/balancing-mechanism-reporting-agent/copyright-licence-bmrs-data/">Elexon’s licence</a> requires the following statement: Contains BMRS data © Elexon Limited copyright and database right <?= date('Y') ?>.

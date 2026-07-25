@@ -54,12 +54,12 @@ class UI {
       <div id="live">
         <div>
 <?php Status::output($state->latest, Status::time($state->time), true); ?>
-<?php Equation::output($state->latest, true); ?>
+<?php Equation::output($state->latest->sources, true); ?>
         </div>
         <div class="sources">
-<?php Latest::output($state->latest, $state->pastDaySeries); ?>
+<?php Latest::output($state->latest->sources, new Sparklines($state->pastDaySeries)); ?>
         </div>
-        <?php PieChart::output($state->latest); ?>
+        <?php PieChart::output($state->latest->sources); ?>
       </div>
 <?php Tabs::output($state); ?>
     </main>

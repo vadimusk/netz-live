@@ -2,8 +2,9 @@
 
 namespace KateMorley\Grid\UI;
 
-use KateMorley\Grid\State\Datum;
-use KateMorley\Grid\State\Map;
+use KateMorley\Grid\State\Kind;
+use KateMorley\Grid\State\Source;
+use KateMorley\Grid\State\Sources;
 
 /** Outputs a pie chart. */
 class PieChart {
@@ -13,13 +14,13 @@ class PieChart {
   /**
    * Outputs a pie chart.
    *
-   * @param Datum $datum The datum
+   * @param Sources $sources The sources
    */
-  public static function output(Datum $datum): void {
-    $generation = $datum->generation->getTotal();
-    $demand     = $datum->getTotal();
+  public static function output(Sources $sources): void {
+    $generation = Kind::Generation->get($sources);
+    $demand     = $generation + Kind::Transfers->get($sources);
 
-    $generationPower      = Value::formatTotalPower($datum->demand->getGeneration());
+    $generationPower      = Value::formatTotalPower($generation);
     $generationPercentage = Value::formatPercentage($generation / $demand);
 
     echo '<div class="pie-chart"><div><div>Generation</div><div class="generation"></div><div><span>';
@@ -33,20 +34,17 @@ class PieChart {
     echo '">';
 
     self::outputRing(
-      $datum->generation,
-      $generation,
-      $demand,
+      $sources,
+      Kind::Generation->sources(),
       self::OUTER_RADIUS,
       1
     );
 
     self::outputRing(
-      $datum->types,
-      $generation,
-      $demand,
+      $sources,
+      [Kind::Fossils, Kind::Renewables, Kind::Others],
       self::INNER_RADIUS,
-      self::OUTER_RADIUS,
-      true
+      self::OUTER_RADIUS
     );
 
     echo "</svg></div>\n";
@@ -55,33 +53,29 @@ class PieChart {
   /**
    * Outputs a ring.
    *
-   * @param Map   $sources     The sources
-   * @param float $generation  The total generation
-   * @param float $demand      The total demand
-   * @param float $innerRadius The inner radius
-   * @param float $outerRadius The outer radius
-   * @param bool  $isTotal     Whether this ring shows power totals
+   * @param Sources                   $sources        The sources
+   * @param array<Kind>|array<Source> $kindsOrSources The kinds or sources
+   * @param float                     $innerRadius    The inner radius
+   * @param float                     $outerRadius    The outer radius
    */
   private static function outputRing(
-    Map   $sources,
-    float $generation,
-    float $demand,
-    float $innerRadius,
-    float $outerRadius,
-    bool  $isTotal = false
+    Sources $sources,
+    array   $kindsOrSources,
+    float   $innerRadius,
+    float   $outerRadius
   ): void {
     $offset = 0;
 
-    foreach ($sources::KEYS as $key => $description) {
-      $power = $sources->get($key);
+    foreach ($kindsOrSources as $kindOrSource) {
+      $power = $kindOrSource->get($sources);
 
       if ($power > 0) {
-        $fraction = $power / $generation;
+        $fraction = $power / Kind::Generation->get($sources);
 
         self::outputArc(
-          $key,
-          ($isTotal ? Value::formatTotalPower($power) : Value::formatPower($power)),
-          Value::formatPercentage($power / $demand),
+          $kindOrSource->value,
+          Value::formatPower($power),
+          Value::formatPercentage($power / $sources->sum()),
           $fraction,
           $offset,
           $innerRadius,

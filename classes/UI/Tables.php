@@ -2,27 +2,24 @@
 
 namespace KateMorley\Grid\UI;
 
-use KateMorley\Grid\State\Datum;
+use KateMorley\Grid\State\Kind;
+use KateMorley\Grid\State\Source;
+use KateMorley\Grid\State\Sources;
 
 /** Outputs tables of sources. */
 class Tables {
   /**
    * Outputs tables of sources.
    *
-   * @param Datum $datum The datum
+   * @param Sources $sources The sources
    */
-  public static function output(Datum $datum): void {
-    $demand = $datum->getTotal();
-
+  public static function output(Sources $sources): void {
 ?>
               <h3>Generation by type</h3>
               <table>
 <?php
 
-    $map = $datum->types;
-    foreach ($map::KEYS as $key => $description) {
-      self::outputTableRow($key, $description, $map->get($key), $demand, true);
-    }
+    self::rows($sources, [Kind::Fossils, Kind::Renewables, Kind::Others]);
 
 ?>
               </table>
@@ -30,10 +27,11 @@ class Tables {
               <table>
 <?php
 
-    $map = $datum->generation;
-    foreach ($map::KEYS as $key => $description) {
-      self::outputTableRow($key, $description, $map->get($key), $demand);
-    }
+    self::rows($sources, [
+      ...Kind::Fossils->sources(),
+      ...Kind::Renewables->sources(),
+      ...Kind::Others->sources()
+    ]);
 
 ?>
               </table>
@@ -41,10 +39,7 @@ class Tables {
               <table class="transfers">
 <?php
 
-    $map = $datum->interconnectors;
-    foreach ($map::KEYS as $key => $description) {
-      self::outputTableRow($key, $description, $map->get($key), $demand);
-    }
+    self::rows($sources, Kind::Interconnectors->sources());
 
 ?>
               </table>
@@ -52,34 +47,34 @@ class Tables {
               <table class="transfers">
 <?php
 
-    $map = $datum->storage;
-    foreach ($map::KEYS as $key => $description) {
-      self::outputTableRow($key, $description, $map->get($key), $demand);
-    }
+    self::rows($sources, Kind::Storage->sources());
 
 ?>
               </table>
 <?php
- }
+  }
 
   /**
-   * Outputs a table row.
+   * Outputs the rows of a table.
    *
-   * @param string $source      The source
-   * @param string $description The description
-   * @param float  $power       The power
-   * @param float  $demand      The total demand
-   * @param bool   $isTotal     Whether this is a power total
+   * @param Sources                   $sources        The sources
+   * @param array<Kind>|array<Source> $kindsOrSources The kinds or sources
    */
-  private static function outputTableRow(
-    string $source,
-    string $description,
-    float  $power,
-    float  $demand,
-    bool   $isTotal = false
-  ): void {
-?>
-                <tr><td class="<?= $source ?>"></td><td><?= $description ?></td><td><?= ($isTotal ? Value::formatTotalPower($power) : Value::formatPower($power)) ?></td><td><?= Value::formatPercentage($power / $demand) ?></td></tr>
-<?php
+  private static function rows(Sources $sources, array $kindsOrSources): void {
+    foreach ($kindsOrSources as $kindOrSource) {
+      if ($kindOrSource === Source::Battery) {
+        continue;
+      }
+
+      echo '                <tr><td class="';
+      echo $kindOrSource->value;
+      echo '"></td><td>';
+      echo $kindOrSource->describe();
+      echo '</td><td>';
+      echo Value::formatPower($kindOrSource->get($sources));
+      echo '</td><td>';
+      echo Value::formatPercentage($kindOrSource->get($sources) / $sources->sum());
+      echo "</td></tr>\n";
+    }
   }
 }

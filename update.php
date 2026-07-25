@@ -27,32 +27,32 @@ Environment::load(__DIR__ . '/.env');
 $database = new Database();
 
 foreach ([
-  'Updating generation… ' => function ($database) {
+  'Updating generation… ' => function (Database $database) {
     Generation::update($database);
   },
 
-  'Updating emissions…  ' => function ($database) {
+  'Updating emissions…  ' => function (Database $database) {
     Emissions::update($database);
   },
 
-  'Updating pricing…    ' => function ($database) {
+  'Updating pricing…    ' => function (Database $database) {
     Pricing::update($database);
   },
 
   // demand must be updated after other half-hourly data to exclude future data
-  'Updating demand…     ' => function ($database) {
+  'Updating demand…     ' => function (Database $database) {
     Demand::update($database);
   },
 
-  'Updating visits…     ' => function ($database) {
+  'Updating visits…     ' => function (Database $database) {
     Visits::update($database);
   },
 
-  'Finishing update…    ' => function ($database) {
+  'Finishing update…    ' => function (Database $database) {
     $database->finishUpdate();
   },
 
-  'Outputting files…    ' => function ($database) {
+  'Outputting files…    ' => function (Database $database) {
     $state = $database->getState();
 
     ob_start();
@@ -61,7 +61,7 @@ foreach ([
 
     file_put_contents(
       __DIR__ . '/public/favicon.svg',
-      Favicon::create($state->latest->types),
+      Favicon::create($state->latest->sources),
       LOCK_EX
     );
   }

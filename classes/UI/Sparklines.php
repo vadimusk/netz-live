@@ -3,7 +3,8 @@
 namespace KateMorley\Grid\UI;
 
 use KateMorley\Grid\State\Datum;
-use KateMorley\Grid\State\Transfers;
+use KateMorley\Grid\State\Kind;
+use KateMorley\Grid\State\Source;
 
 /** Functions for outputting sparklines. */
 class Sparklines {
@@ -36,20 +37,23 @@ class Sparklines {
 
     // we want all sparklines to have the same scale, with transfers shown
     // symmetrically about the axis
-    $this->range = max(array_merge(
-      array_map(fn ($datum) => $datum->generation->getMaximum(),     $series),
-      array_map(fn ($datum) => $datum->transfers->getMinimum() * -2, $series),
-      array_map(fn ($datum) => $datum->transfers->getMaximum() *  2, $series),
+    $this->range = max(array_map(
+      fn ($datum) => max(
+        $datum->sources->maximum(Kind::Generation->sources()),
+        2 * $datum->sources->maximum(Kind::Transfers->sources()),
+        -2 * $datum->sources->minimum(Kind::Transfers->sources()),
+      ),
+      $series
     ));
   }
 
   /**
    * Outputs a sparkline.
    *
-   * @param string $key The source key
+   * @param Source $source The source
    */
-  public function output(string $key): void {
-    $isTransfers = isset(Transfers::KEYS[$key]);
+  public function output(Source $source): void {
+    $isTransfers = in_array($source, Kind::Transfers->sources());
 
     $line = new Line(
       self::HEIGHT,
@@ -57,14 +61,14 @@ class Sparklines {
       $this->range
     );
 
-    $points = array_chunk(array_map(
-      fn ($datum) => $isTransfers ? $datum->transfers : $datum->generation,
-      $this->series,
-    ), self::SMOOTHING);
+    $points = array_chunk(
+      array_map(fn ($datum) => $datum->sources, $this->series),
+      self::SMOOTHING
+    );
 
     foreach ($points as $maps) {
       $line->add(
-        array_sum(array_map(fn ($map) => $map->get($key), $maps))
+        array_sum(array_map(fn ($map) => $map->get($source), $maps))
         / self::SMOOTHING
       );
     }

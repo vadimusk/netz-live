@@ -2,7 +2,6 @@
 
 namespace KateMorley\Grid\UI;
 
-use KateMorley\Grid\State\Datum;
 use KateMorley\Grid\State\State;
 
 /** Represents graph axes. */
@@ -19,13 +18,7 @@ class Axes {
    * @param State $state The state
    */
   public function __construct(State $state) {
-    foreach ([
-      Datum::PRICE,
-      Datum::EMISSIONS,
-      Datum::GENERATION,
-      Datum::TRANSFERS,
-      Datum::DEMAND
-    ] as $map) {
+    foreach (Graph::cases() as $graph) {
       $minimums = [0];
       $maximums = [];
 
@@ -36,8 +29,8 @@ class Axes {
         $state->allTimeSeries
       ] as $series) {
         foreach ($series as $datum) {
-          $minimums[] = $datum->get($map)->getMinimum();
-          $maximums[] = $datum->get($map)->getMaximum();
+          $minimums[] = min($graph->get($datum));
+          $maximums[] = max($graph->get($datum));
         }
       }
 
@@ -65,14 +58,14 @@ class Axes {
         $step = 1;
       }
 
-      $this->setGraphAxis($map, $minimum, $maximum, $step);
+      $this->setGraphAxis($graph, $minimum, $maximum, $step);
     }
 
     $this->setGraphAxis(
-      Datum::VISITS,
+      Graph::Visits,
       0,
       max(...array_map(
-        fn ($datum) => $datum->get(Datum::VISITS)->getMaximum(),
+        fn ($datum) => Graph::Visits->get($datum)[0],
         $state->pastYearSeries
       )),
       self::VISITS_STEP
@@ -82,46 +75,46 @@ class Axes {
   /**
    * Sets the axis details for a graph.
    *
-   * @param int   $map     The map key
+   * @param Graph $graph   The graph
    * @param float $minimum The minimum
    * @param float $maximum The maximum
    * @param int   $step    The step size
    */
   private function setGraphAxis(
-    int   $map,
+    Graph $graph,
     float $minimum,
     float $maximum,
     int   $step
   ): void {
-    $this->minimums[$map] = $step * floor($minimum / $step);
-    $this->maximums[$map] = $step * ceil($maximum  / $step);
-    $this->steps[$map] = $step;
+    $this->minimums[$graph->value] = $step * floor($minimum / $step);
+    $this->maximums[$graph->value] = $step * ceil($maximum  / $step);
+    $this->steps[$graph->value] = $step;
   }
 
   /**
    * Returns the minimum for a graph.
    *
-   * @param int $map The map key
+   * @param Graph $graph The graph
    */
-  public function getMinimum(int $map): int {
-    return $this->minimums[$map];
+  public function getMinimum(Graph $graph): int {
+    return $this->minimums[$graph->value];
   }
 
   /**
    * Returns the maximum for a graph.
    *
-   * @param int $map The map key
+   * @param Graph $graph The graph
    */
-  public function getMaximum(int $map): int {
-    return $this->maximums[$map];
+  public function getMaximum(Graph $graph): int {
+    return $this->maximums[$graph->value];
   }
 
   /**
    * Returns the step size for a graph.
    *
-   * @param int $map The map key
+   * @param Graph $graph The graph
    */
-  public function getStep(int $map): int {
-    return $this->steps[$map];
+  public function getStep(Graph $graph): int {
+    return $this->steps[$graph->value];
   }
 }

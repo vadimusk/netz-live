@@ -2,7 +2,8 @@
 
 namespace KateMorley\Grid\UI;
 
-use KateMorley\Grid\State\Types;
+use KateMorley\Grid\State\Kind;
+use KateMorley\Grid\State\Sources;
 
 /** Generates the favicon. */
 class Favicon {
@@ -16,19 +17,19 @@ class Favicon {
   /**
    * Creates and returns the SVG for the favicon.
    *
-   * @param Types $types The details of power generation by type
+   * @param Sources $sources The sources
    */
-  public static function create(Types $types): string {
+  public static function create(Sources $sources): string {
     $svg = (
       '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 16 16" width="16" height="16"><style>path{stroke:#fff;stroke-width:'
       . self::STROKE_WIDTH
-      .';@media(prefers-color-scheme:dark){stroke:#000;}</style>'
+      .';stroke-linejoin:round;@media(prefers-color-scheme:dark){stroke:#000;}</style>'
     );
 
-    $total      = $types->getTotal();
-    $fossils    = $types->get(Types::FOSSILS)    / $total;
-    $renewables = $types->get(Types::RENEWABLES) / $total;
-    $others     = $types->get(Types::OTHERS)     / $total;
+    $total      = Kind::Generation->get($sources);
+    $fossils    = Kind::Fossils->get($sources) / $total;
+    $renewables = Kind::Renewables->get($sources) / $total;
+    $others     = Kind::Others->get($sources) / $total;
 
     $svg .= self::createArc(
       self::FOSSILS_COLOUR,

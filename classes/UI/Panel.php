@@ -29,35 +29,35 @@ class Panel {
 <?php Status::output($average, $time); ?>
           </div>
           <div>
-<?php Equation::output($average); ?>
+<?php Equation::output($average->sources); ?>
           </div>
           <div>
-            <?php PieChart::output($average); ?>
+            <?php PieChart::output($average->sources); ?>
           </div>
           <div>
             <div class="sources">
-<?php Tables::output($average); ?>
+<?php Tables::output($average->sources); ?>
             </div>
           </div>
           <div>
             <h3>Price per MWh</h3>
-            <?php Graph::output($series, $axes, Datum::PRICE, '£', '', $timeStep, $timeFormat, 2); ?>
+            <?php Graph::Price->output($series, $axes, '£', '', $timeStep, $timeFormat, 2); ?>
           </div>
           <div>
             <h3>Emissions per kWh</h3>
-            <?php Graph::output($series, $axes, Datum::EMISSIONS, '', 'g', $timeStep, $timeFormat, 0); ?>
+            <?php Graph::Emissions->output($series, $axes, '', 'g', $timeStep, $timeFormat, 0); ?>
           </div>
           <div>
             <h3>Demand</h3>
-            <?php Graph::output($series, $axes, Datum::DEMAND, '', 'GW', $timeStep, $timeFormat, 1); ?>
+            <?php Graph::Demand->output($series, $axes, '', 'GW', $timeStep, $timeFormat, 1); ?>
           </div>
           <div>
             <h3>Generation</h3>
-            <?php Graph::output($series, $axes, Datum::GENERATION, '', 'GW', $timeStep, $timeFormat, 2); ?>
+            <?php Graph::Generation->output($series, $axes, '', 'GW', $timeStep, $timeFormat, 2); ?>
           </div>
           <div>
             <h3>Transfers</h3>
-            <?php Graph::output($series, $axes, Datum::TRANSFERS, '', 'GW', $timeStep, $timeFormat, 2); ?>
+            <?php Graph::Transfers->output($series, $axes, '', 'GW', $timeStep, $timeFormat, 2); ?>
           </div>
 <?php
   }

@@ -3,9 +3,17 @@
 namespace KateMorley\Grid\UI;
 
 use KateMorley\Grid\State\Datum;
+use KateMorley\Grid\State\Kind;
 
 /** Outputs a graph. */
-class Graph {
+enum Graph: int {
+  case Price      = 0;
+  case Emissions  = 1;
+  case Demand     = 2;
+  case Generation = 3;
+  case Transfers  = 4;
+  case Visits     = 5;
+
   /**
    * The graph height.
    *
@@ -15,37 +23,102 @@ class Graph {
   private const HEIGHT = 500;
 
   /**
+   * Returns the classes for the lines.
+   *
+   * @return array<string>
+   */
+  public function classes(): array {
+    return match ($this) {
+      self::Price => [
+        'price'
+      ],
+      self::Emissions => [
+        'emissions'
+      ],
+      self::Demand => [
+        'demand',
+        Kind::Fossils->value,
+        Kind::Renewables->value,
+        Kind::Others->value,
+        Kind::Transfers->value
+      ],
+      self::Generation => array_map(
+        fn ($source) => $source->value,
+        Kind::Generation->sources()
+      ),
+      self::Transfers => array_map(
+        fn ($source) => $source->value,
+        Kind::Transfers->sources()
+      ),
+      self::Visits => [
+        'visits'
+      ]
+    };
+  }
+
+  /**
+   * Returns the values to show.
+   *
+   * @param Datum $datum The datum
+   *
+   * @return array<float>
+   */
+  public function get(Datum $datum): array {
+    return match ($this) {
+      self::Price => [$datum->price],
+      self::Emissions => [$datum->emissions],
+      self::Demand => [
+        round(Kind::Fossils->get($datum->sources), 1)
+        + round(Kind::Renewables->get($datum->sources), 1)
+        + round(Kind::Others->get($datum->sources), 1)
+        + round(Kind::Transfers->get($datum->sources), 1),
+        round(Kind::Fossils->get($datum->sources), 1),
+        round(Kind::Renewables->get($datum->sources), 1),
+        round(Kind::Others->get($datum->sources), 1),
+        round(Kind::Transfers->get($datum->sources), 1)
+      ],
+      self::Generation => array_map(
+        fn ($source) => $source->get($datum->sources),
+        Kind::Generation->sources()
+      ),
+      self::Transfers => array_map(
+        fn ($source) => $source->get($datum->sources),
+        Kind::Transfers->sources()
+      ),
+      self::Visits => [$datum->visits]
+    };
+  }
+
+  /**
    * Outputs a graph.
    *
    * @param array<Datum> $series        The series
    * @param Axes         $axes          The axes information
-   * @param int          $map           The map key
    * @param string       $prefix        The value prefix
    * @param string       $suffix        The value suffix
    * @param int          $timeStep      The time step
    * @param string       $timeFormat    The time format
    * @param int          $decimalPlaces The number of decimal places for values
    */
-  public static function output(
+  public function output(
     array  $series,
     Axes   $axes,
-    int    $map,
     string $prefix,
     string $suffix,
     int    $timeStep,
     string $timeFormat,
     int    $decimalPlaces
   ): void {
-    $minimum = $axes->getMinimum($map);
-    $maximum = $axes->getMaximum($map);
-    $step    = $axes->getStep($map);
+    $minimum = $axes->getMinimum($this);
+    $maximum = $axes->getMaximum($this);
+    $step    = $axes->getStep($this);
 
     echo '<div class="graph" data-prefix="';
     echo $prefix;
     echo '" data-suffix="';
     echo $suffix;
     echo '"';
-    if ($map === Datum::TRANSFERS) {
+    if ($this === self::Transfers) {
       echo ' data-transfers="true"';
     }
     echo '>';
@@ -62,8 +135,8 @@ class Graph {
     echo '" height="';
     echo self::HEIGHT;
     echo '" preserveAspectRatio="none">';
-    self::outputLines($series, $map, $minimum, $maximum - $minimum);
-    self::outputOverlay($series, $map, $timeFormat, $decimalPlaces);
+    $this->outputLines($series, $minimum, $maximum - $minimum);
+    $this->outputOverlay($series, $timeFormat, $decimalPlaces);
     echo "</svg></div>\n";
   }
 
@@ -140,13 +213,11 @@ class Graph {
    * Outputs the lines.
    *
    * @param array<Datum> $series  The series
-   * @param int          $map     The map key
    * @param int          $minimum The minimum value
    * @param int          $range   The value range
    */
-  private static function outputLines(
+  private function outputLines(
     array $series,
-    int   $map,
     int   $minimum,
     int   $range
   ): void {
@@ -157,17 +228,17 @@ class Graph {
 
     $lines = array_map(
       fn ($_) => new Line(self::HEIGHT, $minimum, $range),
-      iterator_to_array($series[array_key_first($series)]->get($map))
+      $this->classes()
     );
 
     foreach ($series as $datum) {
-      foreach ($datum->get($map) as $key => $value) {
+      foreach ($this->get($datum) as $key => $value) {
         $lines[$key]->add($value);
       }
     }
 
-    foreach ($lines as $key => $line) {
-      $line->output($key);
+    foreach ($this->classes() as $index => $class) {
+      $lines[$index]->output($class);
     }
   }
 
@@ -175,13 +246,11 @@ class Graph {
    * Outputs the overlay.
    *
    * @param array<Datum> $series        The series
-   * @param int          $map           The map key
    * @param string       $timeFormat    The time format
    * @param int          $decimalPlaces The number of decimal places for values
    */
-  private static function outputOverlay(
+  private function outputOverlay(
     array  $series,
-    int    $map,
     string $timeFormat,
     int    $decimalPlaces
   ): void {
@@ -199,7 +268,7 @@ class Graph {
       echo '" data-values="';
       echo implode(' ', array_map(
         fn ($value) => number_format($value, $decimalPlaces),
-        iterator_to_array($datum->get($map))
+        $this->get($datum)
       ));
       echo '"/>';
 

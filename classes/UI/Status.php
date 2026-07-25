@@ -3,8 +3,6 @@
 namespace KateMorley\Grid\UI;
 
 use KateMorley\Grid\State\Datum;
-use KateMorley\Grid\State\Emissions;
-use KateMorley\Grid\State\Price;
 
 /** Outputs the status. */
 class Status {
@@ -25,9 +23,9 @@ class Status {
             <dt>Time<?php if ($help) { ?> <span data-help="time"></span><?php } ?></dt>
             <dd><?= $time ?></dd>
             <dt>Price<?php if ($help) { ?>  <span data-help="price"></span><?php } ?></dt>
-            <dd><?= Value::formatPrice($datum->price->get(Price::PRICE)) ?><abbr>/MWh</abbr></dd>
+            <dd><?= Value::formatPrice($datum->price) ?><abbr>/MWh</abbr></dd>
             <dt>Emissions<?php if ($help) { ?> <span data-help="emissions"></span><?php } ?></dt>
-            <dd><?= (int)$datum->emissions->get(Emissions::EMISSIONS) ?><abbr>g/kWh</abbr></dd>
+            <dd><?= (int)$datum->emissions ?><abbr>g/kWh</abbr></dd>
           </dl>
 <?php
   }
