@@ -226,6 +226,14 @@ a {
   }
 }
 
+path {
+  fill: transparent;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
 #live {
   display: grid;
   gap: var(--gap);
@@ -584,21 +592,16 @@ dl {
 
     td:nth-child(1) {
       background: currentColor;
+      padding-top: 2px;
 
       svg {
         display: block;
         width: 30px;
-        height: 30px;
-        margin-block: 1px -1px;
+        height: 28px;
       }
 
       path {
-        fill: transparent;
         stroke: var(--content-background);
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        vector-effect: non-scaling-stroke;
       }
 
       .transfers & {
@@ -610,7 +613,7 @@ dl {
           grid-area: 1 / 1;
           background: var(--graph-axis);
           height: 2px;
-          margin-top: 15px;
+          margin-top: 13px;
         }
 
         svg {
@@ -703,13 +706,9 @@ dl {
     }
   }
 
-  svg {
-    path {
-      fill: currentColor;
-      stroke: var(--content-background);
-      stroke-width: 2;
-      vector-effect: non-scaling-stroke;
-    }
+  path {
+    fill: currentColor;
+    stroke: var(--content-background);
   }
 
   #live & {
@@ -744,13 +743,13 @@ dl {
 }
 
 .graph {
-  --graph-height: 250px;
+  --graph-height: 252px;
   --axis-width: 40px;
   --axis-height: 64px;
   --axis-gap: 10px;
   --key-padding: 8px;
   display: grid;
-  grid-template: auto var(--axis-height) /  var(--axis-width) 1fr;
+  grid-template: auto var(--axis-height) / var(--axis-width) 1fr;
   gap: calc(var(--axis-gap) - 0.5em) var(--axis-gap);
   position: relative;
   font-size: 12px;
@@ -763,8 +762,7 @@ dl {
 
   > :nth-child(1) {
     grid-area: 1 / 1 / 2 / 3;
-    grid-template-columns: var(--axis-width) 1fr;
-    column-gap: var(--axis-gap);
+    grid-template-columns: subgrid;
     align-content: space-between;
 
     > :nth-child(even) {
@@ -792,14 +790,12 @@ dl {
     grid-area: 1 / 2 / 2 / 3;
     width: 100%;
     height: var(--graph-height);
-    margin: 0.5em 0;
+    margin-block: calc(0.5em - 1px);
   }
 
   path {
-    fill: transparent;
     stroke: currentcolor;
-    stroke-width: 2.5;
-    vector-effect: non-scaling-stroke;
+    pointer-events: none;
   }
 
   rect {
@@ -933,5 +929,6 @@ dialog {
   path {
     stroke: var(--content-text);
     stroke-width: 4;
+    stroke-linecap: butt;
   }
 }

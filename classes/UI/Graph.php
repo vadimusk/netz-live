@@ -14,13 +14,8 @@ enum Graph: int {
   case Transfers  = 4;
   case Visits     = 5;
 
-  /**
-   * The graph height.
-   *
-   * Chosen to be large enough to allow pixel-perfect placement, but not so
-   * large as to increase the output size due to excessive precision.
-   */
-  private const HEIGHT = 500;
+  /** The height of graphs. */
+  private const HEIGHT = 250;
 
   /** Returns the value prefix. */
   public function prefix(): string {
@@ -149,17 +144,19 @@ enum Graph: int {
     $this->outputValueAxis($minimum, $maximum, $step);
     $this->outputTimeAxis($series, $timeStep, $timeFormat);
 
-    echo '<svg viewBox="-0.5 0 ';
+    echo '<svg viewBox="-0.5 -1 ';
     echo count($series);
     echo ' ';
-    echo self::HEIGHT;
+    echo self::HEIGHT + 2;
     echo '" width="';
     echo count($series);
     echo '" height="';
-    echo self::HEIGHT;
+    echo self::HEIGHT + 2;
     echo '" preserveAspectRatio="none">';
-    $this->outputLines($series, $minimum, $maximum - $minimum);
+
     $this->outputOverlay($series, $timeFormat);
+    $this->outputLines($series, $minimum, max(1, $maximum - $minimum));
+
     echo "</svg></div>\n";
   }
 
@@ -229,35 +226,6 @@ enum Graph: int {
   }
 
   /**
-   * Outputs the lines.
-   *
-   * @param array<Datum> $series  The series
-   * @param int          $minimum The minimum value
-   * @param int          $range   The value range
-   */
-  private function outputLines(array $series, int $minimum, int $range): void {
-    // avoid division by zero for new instances with only a single point
-    if ($range === 0) {
-      $range = 1;
-    }
-
-    $lines = array_map(
-      fn ($_) => new Line(self::HEIGHT, $minimum, $range),
-      $this->classes()
-    );
-
-    foreach ($series as $datum) {
-      foreach ($this->get($datum) as $key => $value) {
-        $lines[$key]->add($value);
-      }
-    }
-
-    foreach ($this->classes() as $index => $class) {
-      $lines[$index]->output($class);
-    }
-  }
-
-  /**
    * Outputs the overlay.
    *
    * @param array<Datum> $series     The series
@@ -286,5 +254,29 @@ enum Graph: int {
     }
 
     echo '</g>';
+  }
+
+  /**
+   * Outputs the lines.
+   *
+   * @param array<Datum> $series  The series
+   * @param int          $minimum The minimum value
+   * @param int          $range   The value range
+   */
+  private function outputLines(array $series, int $minimum, int $range): void {
+    $lines = array_map(
+      fn ($_) => new Line(self::HEIGHT, $minimum, $range),
+      $this->classes()
+    );
+
+    foreach ($series as $datum) {
+      foreach ($this->get($datum) as $key => $value) {
+        $lines[$key]->add($value);
+      }
+    }
+
+    foreach ($this->classes() as $index => $class) {
+      $lines[$index]->output($class);
+    }
   }
 }

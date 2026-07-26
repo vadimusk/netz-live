@@ -9,10 +9,7 @@ use KateMorley\Grid\State\Source;
 /** Functions for outputting sparklines. */
 class Sparklines {
   /** The height of sparklines. */
-  const HEIGHT = 28;
-
-  /** The padding above sparklines. */
-  const PADDING = 2;
+  const HEIGHT = 26;
 
   /** The smoothing factor. */
   const SMOOTHING = 3;
@@ -73,18 +70,18 @@ class Sparklines {
       );
     }
 
-    echo '<svg viewBox="0 -';
-    echo self::PADDING;
-    echo ' ';
+    echo '<svg viewBox="0 -1 ';
     echo count($points) - 1;
     echo ' ';
-    echo self::HEIGHT + self::PADDING;
+    echo self::HEIGHT + 2;
     echo '" width="';
     echo count($points) - 1;
     echo '" height="';
-    echo self::HEIGHT + self::PADDING;
+    echo self::HEIGHT + 2;
     echo '" preserveAspectRatio="none">';
+
     $line->output();
+
     echo '</svg>';
   }
 }
