@@ -27,7 +27,7 @@
   --heading-unit-opacity: 0.6;
   --pie-chart-radius: 145px;
   --graph-axis: #ddd;
-  --graph-line: #eee;
+  --graph-line: #f4f4f4;
   --graph-highlight: #0001;
   --key-line: #999;
   --table-stripe: #f8f8f8;
@@ -72,7 +72,7 @@
     --selected-background: #222c;
     --help-background: #444;
     --graph-axis: #444;
-    --graph-line: #333;
+    --graph-line: #2a2a2a;
     --graph-highlight: #fff1;
     --key-line: #666;
     --unit-opacity: 0.6;

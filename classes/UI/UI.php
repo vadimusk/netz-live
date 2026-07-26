@@ -1,6 +1,5 @@
 <?php
 
-
 namespace KateMorley\Grid\UI;
 
 use KateMorley\Grid\State\State;
