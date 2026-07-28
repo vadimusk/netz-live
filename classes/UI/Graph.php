@@ -14,8 +14,17 @@ enum Graph: int {
   case Transfers  = 4;
   case Visits     = 5;
 
-  /** The height of graphs. */
-  private const HEIGHT = 250;
+  /** Returns a description of the graph. */
+  public function describe(): string {
+    return match ($this) {
+      self::Price      => 'Price per MWh',
+      self::Emissions  => 'Emissions per kWh',
+      self::Demand     => 'Demand',
+      self::Generation => 'Generation',
+      self::Transfers  => 'Transfers',
+      self::Visits     => 'Weekly visits'
+    };
+  }
 
   /** Returns the value prefix. */
   public function prefix(): string {
@@ -111,172 +120,5 @@ enum Graph: int {
         $datum->visits
       ]
     };
-  }
-
-  /**
-   * Outputs a graph.
-   *
-   * @param array<Datum> $series     The series
-   * @param Axes         $axes       The axes information
-   * @param int          $timeStep   The time step
-   * @param string       $timeFormat The time format
-   */
-  public function output(
-    array  $series,
-    Axes   $axes,
-    int    $timeStep,
-    string $timeFormat
-  ): void {
-    $minimum = $axes->getMinimum($this);
-    $maximum = $axes->getMaximum($this);
-    $step    = $axes->getStep($this);
-
-    echo '<div class="graph" data-prefix="';
-    echo $this->prefix();
-    echo '" data-suffix="';
-    echo $this->suffix();
-    echo '"';
-    if ($this === self::Transfers) {
-      echo ' data-transfers="true"';
-    }
-    echo '>';
-
-    $this->outputValueAxis($minimum, $maximum, $step);
-    $this->outputTimeAxis($series, $timeStep, $timeFormat);
-
-    echo '<svg viewBox="-0.5 -1 ';
-    echo count($series);
-    echo ' ';
-    echo self::HEIGHT + 2;
-    echo '" width="';
-    echo count($series);
-    echo '" height="';
-    echo self::HEIGHT + 2;
-    echo '" preserveAspectRatio="none">';
-
-    $this->outputOverlay($series, $timeFormat);
-    $this->outputLines($series, $minimum, max(1, $maximum - $minimum));
-
-    echo "</svg></div>\n";
-  }
-
-  /**
-   * Outputs the value axis.
-   *
-   * @param int $minimum The minimum value
-   * @param int $maximum The maximum value
-   * @param int $step    The value step
-   */
-  private function outputValueAxis(
-    int $minimum,
-    int $maximum,
-    int $step
-  ): void {
-    echo '<div>';
-
-    for ($label = $maximum; $label >= $minimum; $label -= $step) {
-      echo '<div>';
-
-      if ($label < 0) {
-        echo '−';
-      }
-
-      echo $this->prefix();
-      echo number_format(abs($label));
-      echo $this->suffix();
-      echo '</div><div';
-
-      if ($label === 0) {
-        echo ' class="axis"';
-      }
-
-      echo '></div>';
-    }
-
-    echo '</div>';
-  }
-
-  /**
-   * Outputs the time axis.
-   *
-   * @param array<Datum> $series The series
-   * @param string       $step   The time step
-   * @param string       $format The time format
-   */
-  private function outputTimeAxis(
-    array  $series,
-    string $step,
-    string $format
-  ): void {
-    echo '<div>';
-
-    $index = ceil($step / 2);
-
-    foreach ($series as $time => $_) {
-      if ($index % $step === 0) {
-        echo '<div>';
-        echo date($format, $time);
-        echo '</div>';
-      }
-
-      $index ++;
-    }
-
-    echo '</div>';
-  }
-
-  /**
-   * Outputs the overlay.
-   *
-   * @param array<Datum> $series     The series
-   * @param string       $timeFormat The time format
-   */
-  private function outputOverlay(array $series, string $timeFormat): void {
-    echo '<g transform="translate(-0.5 0)">';
-
-    $index = 0;
-
-    foreach ($series as $time => $datum) {
-      echo '<rect x="';
-      echo $index;
-      echo '" y="0" width="1" height="';
-      echo self::HEIGHT;
-      echo '" data-time="';
-      echo date($timeFormat, $time);
-      echo '" data-values="';
-      echo implode(' ', array_map(
-        fn ($value) => number_format($value, $this->decimalPlaces()),
-        $this->get($datum)
-      ));
-      echo '"/>';
-
-      $index ++;
-    }
-
-    echo '</g>';
-  }
-
-  /**
-   * Outputs the lines.
-   *
-   * @param array<Datum> $series  The series
-   * @param int          $minimum The minimum value
-   * @param int          $range   The value range
-   */
-  private function outputLines(array $series, int $minimum, int $range): void {
-    $lines = array_map(
-      fn ($_) => new Line(self::HEIGHT, $minimum, $range),
-      $this->classes()
-    );
-
-    foreach ($series as $datum) {
-      foreach ($this->get($datum) as $key => $value) {
-        $lines[$key]->add($value);
-      }
-    }
-
-    foreach ($this->classes() as $index => $class) {
-      $lines[$index]->output($class);
-    }
   }
 }

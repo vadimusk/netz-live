@@ -9,32 +9,32 @@ class State {
    *
    * @param int           $time           The time of the latest data
    * @param Datum         $latest         The latest datum
-   * @param Datum         $pastDay        The past day's datum
-   * @param Datum         $pastWeek       The past week's datum
-   * @param Datum         $pastYear       The past year's datum
-   * @param Datum         $allTime        The all-time datum
-   * @param array<Datum>  $pastDaySeries  The past day series
-   * @param array<Datum>  $pastWeekSeries The past week series
-   * @param array<Datum>  $pastYearSeries The past year series
-   * @param array<Datum>  $allTimeSeries  The all-time series
+   * @param Datum         $day            The past day's datum
+   * @param Datum         $week           The past week's datum
+   * @param Datum         $year           The past year's datum
+   * @param Datum         $all            The all-time datum
+   * @param array<Datum>  $daySeries      The past day series
+   * @param array<Datum>  $weekSeries     The past week series
+   * @param array<Datum>  $yearSeries     The past year series
+   * @param array<Datum>  $allSeries      The all-time series
    * @param Record        $windRecord     The wind power generation record
    * @param array<string> $windMilestones The wind power generation milestones
-   * @param int           $yearlyVisits   The number of visits in the past year
+   * @param int           $visits         The number of visits in the past year
    */
   public function __construct(
     public readonly int    $time,
     public readonly Datum  $latest,
-    public readonly Datum  $pastDay,
-    public readonly Datum  $pastWeek,
-    public readonly Datum  $pastYear,
-    public readonly Datum  $allTime,
-    public readonly array  $pastDaySeries,
-    public readonly array  $pastWeekSeries,
-    public readonly array  $pastYearSeries,
-    public readonly array  $allTimeSeries,
+    public readonly Datum  $day,
+    public readonly Datum  $week,
+    public readonly Datum  $year,
+    public readonly Datum  $all,
+    public readonly array  $daySeries,
+    public readonly array  $weekSeries,
+    public readonly array  $yearSeries,
+    public readonly array  $allSeries,
     public readonly Record $windRecord,
     public readonly array  $windMilestones,
-    public readonly int    $yearlyVisits
+    public readonly int    $visits
   ) {
   }
 }

@@ -4,14 +4,26 @@ namespace KateMorley\Grid\UI;
 
 use KateMorley\Grid\State\State;
 
-/** Outputs the user interface. */
+/** Functions for outputting the user interface. */
 class UI {
+  /** The state. */
+  private State $state;
+
+  /** The graphs. */
+  private Graphs $graphs;
+
   /**
-   * Outputs the user interface.
+   * Constructs a new instance.
    *
    * @param State $state The state
    */
-  public static function output(State $state): void {
+  public function __construct(State $state) {
+    $this->state = $state;
+    $this->graphs = new Graphs($state);
+  }
+
+  /** Outputs the user interface. */
+  public function output(): void {
     $stylesheetModified = filemtime(__DIR__ . '/../../public/grid.css');
     $javascriptModified = filemtime(__DIR__ . '/../../public/grid.js');
 
@@ -52,19 +64,19 @@ class UI {
     <main>
       <div id="live">
         <div>
-<?php Status::output($state->latest, Status::time($state->time), true); ?>
-<?php Equation::output($state->latest->sources, true); ?>
+<?php Status::output($this->state->latest, Status::time($this->state->time), true); ?>
+<?php Equation::output($this->state->latest->sources, true); ?>
         </div>
         <div class="sources">
-<?php Latest::output($state->latest->sources, new Sparklines($state->pastDaySeries)); ?>
+<?php Latest::output($this->state->latest->sources, new Sparklines($this->state->daySeries)); ?>
         </div>
-        <?php PieChart::output($state->latest->sources); ?>
+        <?php PieChart::output($this->state->latest->sources); ?>
       </div>
-<?php Tabs::output($state); ?>
+<?php $this->historical(); ?>
     </main>
     <footer>
-<?php Transition::output($state); ?>
-<?php About::output($state); ?>
+<?php Transition::output($this->state); ?>
+<?php About::output($this->state); ?>
     </footer>
     <dialog>
       <h2>Help</h2>
@@ -73,6 +85,61 @@ class UI {
     </dialog>
   </body>
 </html>
+<?php
+  }
+
+  /** Outputs the historical data section. */
+  public function historical(): void {
+?>
+      <section>
+        <div role="tablist">
+          <h2 id="tab-day" role="tab" aria-controls="tab-panel-day" aria-selected="true"><span>Past </span>day</h2>
+          <h2 id="tab-week" role="tab" aria-controls="tab-panel-week" aria-selected="false"><span>Past </span>week</h2>
+          <h2 id="tab-year" role="tab" aria-controls="tab-panel-year" aria-selected="false"><span>Past </span>year</h2>
+          <h2 id="tab-all" role="tab" aria-controls="tab-panel-all" aria-selected="false">All<span> time</span></h2>
+        </div>
+<?php
+
+    foreach (Period::cases() as $period) {
+      $this->panel($period);
+    }
+
+?>
+      </section>
+<?php
+  }
+
+  /**
+   * Outputs a historical data panel.
+   *
+   * @param Period $period The time period
+   */
+  public function panel(Period $period): void {
+    $datum = $period->datum($this->state);
+
+?>
+        <div id="tab-panel-<?= $period->id() ?>" role="tabpanel" aria-labelledby="tab-<?= $period->id() ?>" tabindex="0">
+<?php Status::output($datum, $period->describe()); ?>
+<?php Equation::output($datum->sources); ?>
+          <div>
+            <?php PieChart::output($datum->sources); ?>
+          </div>
+          <div>
+            <div class="sources">
+<?php Tables::output($datum->sources); ?>
+            </div>
+          </div>
+<?php
+
+    foreach (Graph::cases() as $graph) {
+      if ($graph !== Graph::Visits) {
+        echo '          ';
+        $this->graphs->output($graph, $period);
+      }
+    }
+
+?>
+        </div>
 <?php
   }
 }

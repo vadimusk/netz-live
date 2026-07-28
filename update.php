@@ -56,7 +56,7 @@ foreach ([
     $state = $database->getState();
 
     ob_start();
-    UI::output($state);
+    (new UI($state))->output();
     file_put_contents(__DIR__ . '/public/index.html', ob_get_clean(), LOCK_EX);
 
     file_put_contents(

@@ -208,6 +208,10 @@ p {
   + p {
     margin-top: 1rem;
   }
+
+  + div {
+    margin-block: 1rem;
+  }
 }
 
 table {
@@ -847,10 +851,6 @@ dl {
       content: none;
     }
   }
-}
-
-.visits-graph {
-  margin: 1rem 0;
 }
 
 .wind-milestones {
