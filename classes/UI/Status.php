@@ -25,7 +25,7 @@ class Status {
             <dt>Price<?php if ($help) { ?>  <span data-help="price"></span><?php } ?></dt>
             <dd><?= Value::formatPrice($datum->price) ?><abbr>/MWh</abbr></dd>
             <dt>Emissions<?php if ($help) { ?> <span data-help="emissions"></span><?php } ?></dt>
-            <dd><?= (int)$datum->emissions ?><abbr>g/kWh</abbr></dd>
+            <dd class="<?= Emissions::get((int)$datum->emissions)->class() ?>"><?= (int)$datum->emissions ?><abbr>g/kWh</abbr></dd>
           </dl>
 <?php
   }
