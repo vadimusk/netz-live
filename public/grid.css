@@ -738,6 +738,28 @@ dl {
     @media screen and (min-width:1360px) {
       grid-area: 2 / 2 / 3 / 3;
       font-size: 1rem;
+
+      /* Here the chart shares a row with the source tables, and Germany's
+         eleven interconnectors make that row far taller than the chart is
+         wide, so a card stretched to fill it would be drawn as an ellipse.
+         The card is therefore transparent, letting the tables' own white
+         background carry straight through behind the chart, and the ring
+         is drawn around the circle itself: a round emblem inset into the
+         card, which is how it reads upstream where the tables happen to be
+         about as tall as the chart is wide. */
+      margin-block: 0;
+      border: 0;
+      background: transparent;
+
+      /* the background and ring go on the label layer, which sits below the
+         chart, so that the tables' header bars are clipped by the circle
+         instead of showing through the doughnut's hole, without the chart
+         covering the label */
+      > div {
+        border-radius: 50%;
+        background: var(--content-background);
+        box-shadow: 0 0 0 2rem var(--background);
+      }
     }
   }
 
