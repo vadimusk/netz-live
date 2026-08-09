@@ -722,6 +722,8 @@ dl {
 
     @media screen and (min-width:840px) {
       grid-area: 1 / 2 / 2 / 3;
+      align-self: center;
+      width: calc(2 * var(--pie-chart-radius));
       margin-block: -2rem;
       border: 2rem solid var(--background);
     }

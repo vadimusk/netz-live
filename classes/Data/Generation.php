@@ -91,7 +91,7 @@ class Generation {
     $columns = array_flip(self::KEYS);
     $data    = [];
 
-    self::ingest(
+    $generationTimes = self::ingest(
       'https://api.energy-charts.info/public_power?country=de&start=%s&end=%s',
       'production_types',
       self::GENERATION_SERIES,
@@ -100,7 +100,7 @@ class Generation {
       $data
     );
 
-    self::ingest(
+    $transferTimes = self::ingest(
       'https://api.energy-charts.info/cbpf?country=de&start=%s&end=%s',
       'countries',
       self::TRANSFER_SERIES,
@@ -109,7 +109,17 @@ class Generation {
       $data
     );
 
-    $database->updateGeneration($data);
+    // cross-border flow data is typically published a couple of hours later
+    // than domestic generation data, so only commit quarter hours where both
+    // are available; otherwise the most recent rows would show generation
+    // alongside misleadingly-zero interconnector figures, only to be filled
+    // in retroactively once the flow data catches up
+    $completeTimes = array_intersect($generationTimes, $transferTimes);
+
+    $database->updateGeneration(array_intersect_key(
+      $data,
+      array_flip($completeTimes)
+    ));
   }
 
   /**
@@ -126,6 +136,8 @@ class Generation {
    *                                        stored unit
    * @param array              $data       The data array to merge into
    *
+   * @return array<string> The times found in this endpoint's response
+   *
    * @throws DataException If the data was invalid
    */
   private static function ingest(
@@ -135,7 +147,7 @@ class Generation {
     array  $columnIndexes,
     float  $divisor,
     array  &$data
-  ): void {
+  ): array {
     $rawData = @file_get_contents(sprintf(
       $urlPattern,
       gmdate('Y-m-d\\TH:i\\Z', time() - 24 * 60 * 60),
@@ -205,5 +217,7 @@ class Generation {
         $data[$times[$index]][$row] = round($value / $divisor, 2);
       }
     }
+
+    return $times;
   }
 }
