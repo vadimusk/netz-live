@@ -1,15 +1,3 @@
-@font-face {
-  font-family: 'Proza';
-  font-weight: 300;
-  src: url('proza-light.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Proza';
-  font-weight: 400;
-  src: url('proza-regular.woff2') format('woff2');
-}
-
 :root {
   --width: 36;
   --gap: 1rem;
@@ -39,29 +27,34 @@
   }
 }
 
-.generation  { color: #aaa; }
-.price       { color: #000; }
-.emissions   { color: #000; }
-.demand      { color: #000; }
-.fossils     { color: #c45; }
-.renewables  { color: #5b5; }
-.others      { color: #27c; }
-.transfers   { color: #aaa; }
-.coal        { color: #a35; }
-.gas         { color: #e94; }
-.solar       { color: #ed0; }
-.wind        { color: #9d5; }
-.hydro       { color: #2cb; }
-.nuclear     { color: #09c; }
-.biomass     { color: #36b; }
-.belgium     { color: #817; }
-.denmark     { color: #c66; }
-.france      { color: #e94; }
-.ireland     { color: #ed0; }
-.netherlands { color: #9d5; }
-.norway      { color: #2cb; }
-.pumped      { color: #09c; }
-.battery     { color: #639; }
+.generation      { color: #aaa; }
+.price           { color: #000; }
+.emissions       { color: #000; }
+.demand          { color: #000; }
+.fossils         { color: #c45; }
+.renewables      { color: #5b5; }
+.others          { color: #27c; }
+.transfers       { color: #aaa; }
+.lignite         { color: #a63; }
+.hardCoal        { color: #a35; }
+.gas             { color: #e94; }
+.solar           { color: #ed0; }
+.wind            { color: #9d5; }
+.hydro           { color: #2cb; }
+.biomass         { color: #36b; }
+.other           { color: #b85; }
+.pumped          { color: #09c; }
+.austria         { color: #c53; }
+.belgium         { color: #817; }
+.czechRepublic   { color: #47a; }
+.denmark         { color: #d15; }
+.france          { color: #38b; }
+.luxembourg      { color: #4bc; }
+.netherlands     { color: #f82; }
+.norway          { color: #159; }
+.poland          { color: #e56; }
+.sweden          { color: #db3; }
+.switzerland     { color: #a33; }
 
 @media (prefers-color-scheme:dark) {
   :root {
@@ -92,7 +85,7 @@
 
 html {
   height: 100%;
-  font-family: Proza,sans-serif;
+  font-family: -apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   font-weight: 300;
   font-size: clamp(18px, calc(100vw / var(--width)), 20px);
   font-feature-settings: 'tnum';

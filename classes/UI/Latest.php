@@ -3,7 +3,6 @@
 namespace KateMorley\Grid\UI;
 
 use KateMorley\Grid\State\Kind;
-use KateMorley\Grid\State\Source;
 use KateMorley\Grid\State\Sources;
 
 /** Outputs the latest data. */
@@ -13,13 +12,18 @@ class Latest {
    *
    * @param Sources    $sources    The latest sources
    * @param Sparklines $sparklines The Sparklines instance
+   * @param string     $locale     The locale ('de' or 'en')
    */
-  public static function output(Sources $sources, Sparklines $sparklines): void {
-    self::table($sources, $sparklines, Kind::Fossils);
-    self::table($sources, $sparklines, Kind::Renewables);
-    self::table($sources, $sparklines, Kind::Others);
-    self::table($sources, $sparklines, Kind::Interconnectors);
-    self::table($sources, $sparklines, Kind::Storage);
+  public static function output(
+    Sources    $sources,
+    Sparklines $sparklines,
+    string     $locale
+  ): void {
+    self::table($sources, $sparklines, Kind::Fossils, $locale);
+    self::table($sources, $sparklines, Kind::Renewables, $locale);
+    self::table($sources, $sparklines, Kind::Others, $locale);
+    self::table($sources, $sparklines, Kind::Interconnectors, $locale);
+    self::table($sources, $sparklines, Kind::Storage, $locale);
   }
 
   /**
@@ -28,11 +32,13 @@ class Latest {
    * @param Sources    $sources    The latest sources
    * @param Sparklines $sparklines The Sparklines instance
    * @param Kind       $kind       The kind of power source
+   * @param string     $locale     The locale ('de' or 'en')
    */
   private static function table(
     Sources    $sources,
     Sparklines $sparklines,
     Kind       $kind,
+    string     $locale
   ): void {
 ?>
           <table class="<?= $kind->value ?>">
@@ -40,11 +46,11 @@ class Latest {
 <?php
 
     echo '              <tr><th></th><th>';
-    echo $kind->describe();
+    echo $kind->describe($locale);
     echo '</th><th>';
-    echo Value::formatPower($kind->get($sources));
+    echo Value::formatPower($kind->get($sources), $locale);
     echo '</th><th>';
-    echo Value::formatPercentage($kind->get($sources) / $sources->sum());
+    echo Value::formatPercentage($kind->get($sources) / $sources->sum(), $locale);
     echo "</th></tr>\n";
 
 ?>
@@ -53,27 +59,19 @@ class Latest {
 <?php
 
     foreach ($kind->sources() as $source) {
-      if ($source === Source::Coal) {
-        continue;
-      }
-
       echo '              <tr><td class="';
       echo $source->value;
       echo '">';
 
-      if ($source === Source::Battery) {
-        echo '<svg></svg></td><td>Battery <span data-help="battery"></span></td><td>—</td><td>—';
-      } else {
-        $sparklines->output($source);
-        echo '</td><td>';
-        echo $source->describe();
-        echo ' <span data-help="';
-        echo $source->value;
-        echo '"></span></td><td>';
-        echo Value::formatPower($source->get($sources));
-        echo '</td><td>';
-        echo Value::formatPercentage($source->get($sources) / $sources->sum());
-      }
+      $sparklines->output($source);
+      echo '</td><td>';
+      echo $source->describe($locale);
+      echo ' <span data-help="';
+      echo $source->value;
+      echo '"></span></td><td>';
+      echo Value::formatPower($source->get($sources), $locale);
+      echo '</td><td>';
+      echo Value::formatPercentage($source->get($sources) / $sources->sum(), $locale);
 
       echo "</td></tr>\n";
     }

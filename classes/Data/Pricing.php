@@ -4,7 +4,12 @@ namespace KateMorley\Grid\Data;
 
 use KateMorley\Grid\Database;
 
-/** Updates pricing data. */
+/**
+ * Updates pricing data from the Energy-Charts API
+ * (https://api.energy-charts.info). This is day-ahead auction data for the
+ * DE-LU bidding zone, licensed CC BY 4.0 from the Bundesnetzagentur /
+ * SMARD.de.
+ */
 class Pricing {
   public const KEYS = [
     'price'
@@ -18,15 +23,13 @@ class Pricing {
    * @throws DataException If the data was invalid
    */
   public static function update(Database $database): void {
-    $time = $database->getLatestHalfHourTimestamp();
+    $time = $database->getLatestQuarterHourTimestamp();
 
-    $rawData = @file_get_contents(
-      sprintf(
-        'https://data.elexon.co.uk/bmrs/api/v1/balancing/pricing/market-index?from=%s&to=%s&dataProviders=APXMIDP',
-        gmdate('Y-m-d\\TH:i:s\\Z', $time - 24 * 60 * 60),
-        gmdate('Y-m-d\\TH:i:s\\Z', $time)
-      )
-    );
+    $rawData = @file_get_contents(sprintf(
+      'https://api.energy-charts.info/price?bzn=DE-LU&start=%s&end=%s',
+      gmdate('Y-m-d\\TH:i\\Z', $time - 24 * 60 * 60),
+      gmdate('Y-m-d\\TH:i\\Z', $time)
+    ));
 
     if ($rawData === false) {
       throw new DataException('Failed to read data');
@@ -36,45 +39,43 @@ class Pricing {
 
     if (
       !is_array($jsonData)
-      || !isset($jsonData['data'])
-      || !is_array($jsonData['data'])
+      || !isset($jsonData['unix_seconds']) || !is_array($jsonData['unix_seconds'])
+      || !isset($jsonData['price']) || !is_array($jsonData['price'])
+      || count($jsonData['unix_seconds']) !== count($jsonData['price'])
     ) {
       throw new DataException('Missing data');
     }
 
     $data = [];
 
-    foreach ($jsonData['data'] as $item) {
-      if (!is_array($item)) {
-        throw new DataException('Invalid item');
-      }
-
-      $data[] = self::getDatum($item);
+    foreach ($jsonData['unix_seconds'] as $index => $seconds) {
+      $data[] = self::getDatum($seconds, $jsonData['price'][$index]);
     }
 
-    $database->update(self::KEYS, $data);
+    $database->update(self::KEYS, array_filter($data));
   }
 
   /**
-   * Returns the datum for an item.
+   * Returns the datum for a data point, or null if the value is unavailable.
    *
-   * @param array $item The item
+   * @param mixed $seconds The Unix timestamp
+   * @param mixed $value   The price
    *
    * @throws DataException If the data was invalid
    */
-  private static function getDatum(array $item): array {
-    if (!isset($item['startTime'])) {
-      throw new DataException('Missing time');
+  private static function getDatum(mixed $seconds, mixed $value): ?array {
+    if (!is_int($seconds)) {
+      throw new DataException('Invalid time: ' . $seconds);
     }
 
-    if (!isset($item['price'])) {
-      throw new DataException('Missing price');
+    if ($value === null) {
+      return null;
     }
 
-    if (!is_float($item['price']) && !is_int($item['price'])) {
-      throw new DataException('Invalid price: ' . $item['price']);
+    if (!is_int($value) && !is_float($value)) {
+      throw new DataException('Invalid price: ' . $value);
     }
 
-    return [Time::normalise($item['startTime'], 30), $item['price']];
+    return [Time::normaliseUnix($seconds, 15), $value];
   }
 }

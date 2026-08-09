@@ -2,7 +2,6 @@
 
 namespace KateMorley\Grid;
 
-use KateMorley\Grid\Data\Demand;
 use KateMorley\Grid\Data\Emissions;
 use KateMorley\Grid\Data\Generation;
 use KateMorley\Grid\Data\Pricing;
@@ -13,7 +12,7 @@ use KateMorley\Grid\State\State;
 
 /** Database functions. */
 class Database {
-  private const PAST_DAY  = '(SELECT * FROM past_half_hours ORDER BY time DESC LIMIT 48)';
+  private const PAST_DAY  = '(SELECT * FROM past_quarter_hours ORDER BY time DESC LIMIT 96)';
   private const PAST_WEEK = '(SELECT * FROM past_days ORDER BY time DESC LIMIT 1,7)';
   private const PAST_YEAR = '(SELECT * FROM past_weeks ORDER BY time DESC LIMIT 1,52)';
 
@@ -55,35 +54,33 @@ class Database {
   }
 
   /**
-   * Returns the earliest half hour, as a YYYY-MM-DD HH:MM:SS string. The return
-   * value represents the latest midnight more than four weeks ago; this ensures
-   * that the half-hourly data represents complete days for aggregation.
+   * Returns the earliest quarter hour, as a YYYY-MM-DD HH:MM:SS string. The
+   * return value represents the latest midnight more than four weeks ago;
+   * this ensures that the quarter-hourly data represents complete days for
+   * aggregation.
    */
-  public function getEarliestHalfHour(): string {
+  public function getEarliestQuarterHour(): string {
     return gmdate(
       'Y-m-d H:i:s',
       gmmktime(0, 0, 0, gmdate('n'), gmdate('j') - 28)
     );
   }
 
-  /** Returns the latest half hour, as a YYYY-MM-DD HH:MM:SS string. */
-  public function getLatestHalfHour(): string {
+  /** Returns the latest quarter hour, as a YYYY-MM-DD HH:MM:SS string. */
+  public function getLatestQuarterHour(): string {
     return $this->connection->query(
-      'SELECT MAX(time) FROM past_half_hours'
+      'SELECT MAX(time) FROM past_quarter_hours'
     )->fetch_row()[0];
   }
 
-  /** Returns the latest half hour, as a Unix timestamp. */
-  public function getLatestHalfHourTimestamp(): int {
-    return strtotime($this->getLatestHalfHour() . ' UTC');
+  /** Returns the latest quarter hour, as a Unix timestamp. */
+  public function getLatestQuarterHourTimestamp(): int {
+    return strtotime($this->getLatestQuarterHour() . ' UTC');
   }
 
   /** Returns the latest time and datum. */
   private function getLatest(): array {
-    $map = array_merge(
-      $this->getLatestMap('past_half_hours'),
-      $this->getLatestMap('past_five_minutes')
-    );
+    $map = $this->getLatestMap('past_quarter_hours');
 
     return [
       strtotime($map['time'] . ' UTC'),
@@ -175,83 +172,21 @@ class Database {
    * @param array $data The generation data
    */
   public function updateGeneration(array $data): void {
-    $this->updatePastTimeSeries('past_five_minutes', Generation::KEYS, $data);
-    $this->deleteOldGeneration();
-    $this->aggregateGeneration();
+    $this->updatePastTimeSeries('past_quarter_hours', Generation::KEYS, $data);
   }
 
   /**
-   * Deletes old generation data to reduce the size of the database. Data older
-   * than the latest half-hour more than a day ago is deleted; this ensures
-   * that the remaining data represents complete half-hours for aggregation.
-   */
-  private function deleteOldGeneration(): void {
-    $oneDayAgo = time() - 24 * 60 *60;
-
-    $this->connection->query(
-      'DELETE FROM past_five_minutes WHERE time<"'
-      . gmdate('Y-m-d H:i:s', $oneDayAgo - $oneDayAgo % (30 * 60))
-      . '"'
-    );
-  }
-
-  /**
-   * Aggregates generation data from the five-minute time series into the
-   * half-hour time series, propagating forward the most recent half-hour
-   * non-generation values.
-   */
-  private function aggregateGeneration(): void {
-    // store the most recent half-hour values so we can propagate them forwards
-    $previousHalfHour = $this->getLatestMap('past_half_hours');
-
-    // To determine the latest complete half-hour, we subtract 25 minutes from
-    // the most recent time and then round down to a multiple of 30 minutes.
-    // This works because a half-hour is complete once the five-minute period
-    // starting at 25 or 55 minutes past the hour is available.
-    $latestHalfHour = $this->connection->query(
-      'SELECT DATE_SUB(time,INTERVAL MOD(MINUTE(time),30) MINUTE) FROM (SELECT DATE_SUB(MAX(time),INTERVAL 25 MINUTE) AS time FROM past_five_minutes) AS t'
-    )->fetch_row()[0];
-
-    // aggregate the five-minute data for complete half-hours
-    $this->connection->query(
-      'INSERT INTO past_half_hours (time,'
-      . implode(',', Generation::KEYS)
-      . ') SELECT DATE_SUB(time,INTERVAL MOD(MINUTE(time),30) MINUTE) AS aggregated_time,'
-      . self::getAveragesExpression(Generation::KEYS)
-      . ' FROM past_five_minutes GROUP BY aggregated_time HAVING aggregated_time<="'
-      . $latestHalfHour
-      . '"'
-      . self::getOnDuplicateKeyUpdateClause(Generation::KEYS)
-    );
-
-    // propagate forwards the non-generation data for newly inserted half-hours
-    $this->connection->query(
-      'UPDATE past_half_hours SET '
-      . implode(
-        ',',
-        array_map(
-          fn ($column) => $column . '=' . $previousHalfHour[$column],
-          array_merge(Demand::KEYS, Pricing::KEYS, Emissions::KEYS)
-        )
-      )
-      . ' WHERE time>"'
-      . $previousHalfHour['time']
-      . '"'
-    );
-  }
-
-  /**
-   * Updates data, ignoring data prior to the earliest half hour or past the
-   * latest half hour.
+   * Updates data, ignoring data prior to the earliest quarter hour or past
+   * the latest quarter hour.
    *
    * @param array $columns The columns to update
    * @param array $data    The data
    */
   public function update(array $columns, array $data): void {
-    $earliest = '"' . $this->getEarliestHalfHour() . '"';
-    $latest   = '"' . $this->getLatestHalfHour() . '"';
+    $earliest = '"' . $this->getEarliestQuarterHour() . '"';
+    $latest   = '"' . $this->getLatestQuarterHour() . '"';
 
-    $this->updatePastTimeSeries('past_half_hours', $columns, array_filter(
+    $this->updatePastTimeSeries('past_quarter_hours', $columns, array_filter(
       $data,
       fn ($datum) => $datum[0] >= $earliest && $datum[0] <= $latest
     ));
@@ -291,11 +226,11 @@ class Database {
 
   /** Finishes a database update. */
   public function finishUpdate(): void {
-    $this->deleteOldHalfHours();
+    $this->deleteOldQuarterHours();
     $this->updateWindRecords();
 
     $this->aggregateTimeSeries(
-      'past_half_hours',
+      'past_quarter_hours',
       'past_days',
       'DATE_SUB(DATE_SUB(time,INTERVAL MINUTE(time) MINUTE),INTERVAL HOUR(time) HOUR)'
     );
@@ -313,20 +248,20 @@ class Database {
     );
   }
 
-  /** Deletes old half-hourly data to reduce the size of the database. */
-  private function deleteOldHalfHours(): void {
+  /** Deletes old quarter-hourly data to reduce the size of the database. */
+  private function deleteOldQuarterHours(): void {
     $this->connection->query(
-      'DELETE FROM past_half_hours WHERE time<"'
-      . $this->getEarliestHalfHour()
+      'DELETE FROM past_quarter_hours WHERE time<"'
+      . $this->getEarliestQuarterHour()
       . '"'
     );
   }
 
   /** Updates the wind records. */
   private function updateWindRecords(): void {
-    // delete records for which embedded wind estimates may have been revised
+    // delete records for which wind estimates may have been revised
     $this->connection->query(
-      'DELETE wind_records FROM wind_records INNER JOIN past_half_hours USING (time)'
+      'DELETE wind_records FROM wind_records INNER JOIN past_quarter_hours USING (time)'
     );
 
     $record = (float)$this->connection->query(
@@ -334,7 +269,7 @@ class Database {
     )->fetch_row()[0];
 
     $rows = $this->connection->query(
-      'SELECT time,embedded_wind+wind AS value FROM past_half_hours ORDER BY time'
+      'SELECT time,wind_onshore+wind_offshore AS value FROM past_quarter_hours ORDER BY time'
     );
 
     while ($row = $rows->fetch_assoc()) {
@@ -415,7 +350,6 @@ class Database {
   /** Returns the list of database columns. */
   private static function getColumns(): array {
     return array_merge(
-      Demand::KEYS,
       Generation::KEYS,
       Pricing::KEYS,
       Emissions::KEYS,

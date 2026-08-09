@@ -2,6 +2,8 @@
 
 namespace KateMorley\Grid\State;
 
+use KateMorley\Grid\UI\I18n;
+
 /** A kind of power source. */
 enum Kind: string {
   case Generation      = 'generation';
@@ -12,17 +14,13 @@ enum Kind: string {
   case Interconnectors = 'interconnectors transfers';
   case Storage         = 'storage transfers';
 
-  /** Returns a description of the kind of power source. */
-  public function describe(): string {
-    return match ($this) {
-      self::Generation      => 'Generation',
-      self::Fossils         => 'Fossil fuels',
-      self::Renewables      => 'Renewables',
-      self::Others          => 'Other sources',
-      self::Transfers       => 'Transfers',
-      self::Interconnectors => 'Interconnectors',
-      self::Storage         => 'Storage'
-    };
+  /**
+   * Returns a description of the kind of power source.
+   *
+   * @param string $locale The locale ('de' or 'en')
+   */
+  public function describe(string $locale): string {
+    return I18n::t('kind.' . explode(' ', $this->value)[0], $locale);
   }
 
   /**
@@ -42,16 +40,18 @@ enum Kind: string {
   public function sources(): array {
     return match ($this) {
       self::Generation => [
-        Source::Coal,
+        Source::Lignite,
+        Source::HardCoal,
         Source::Gas,
         Source::Solar,
         Source::Wind,
         Source::Hydro,
-        Source::Nuclear,
-        Source::Biomass
+        Source::Biomass,
+        Source::Other
       ],
       self::Fossils => [
-        Source::Coal,
+        Source::Lignite,
+        Source::HardCoal,
         Source::Gas
       ],
       self::Renewables => [
@@ -60,29 +60,38 @@ enum Kind: string {
         Source::Hydro
       ],
       self::Others => [
-        Source::Nuclear,
-        Source::Biomass
+        Source::Biomass,
+        Source::Other
       ],
       self::Transfers => [
+        Source::Austria,
         Source::Belgium,
+        Source::CzechRepublic,
         Source::Denmark,
         Source::France,
-        Source::Ireland,
+        Source::Luxembourg,
         Source::Netherlands,
         Source::Norway,
+        Source::Poland,
+        Source::Sweden,
+        Source::Switzerland,
         Source::Pumped
       ],
       self::Interconnectors => [
+        Source::Austria,
         Source::Belgium,
+        Source::CzechRepublic,
         Source::Denmark,
         Source::France,
-        Source::Ireland,
+        Source::Luxembourg,
         Source::Netherlands,
-        Source::Norway
+        Source::Norway,
+        Source::Poland,
+        Source::Sweden,
+        Source::Switzerland
       ],
       self::Storage => [
-        Source::Pumped,
-        Source::Battery
+        Source::Pumped
       ]
     };
   }
