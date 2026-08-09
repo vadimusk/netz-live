@@ -738,7 +738,9 @@ dl {
     @media screen and (min-width:840px) {
       grid-area: 1 / 2 / 2 / 3;
       align-self: center;
-      width: calc(2 * var(--pie-chart-radius));
+      /* box-sizing is border-box, so the ring has to be added to the width
+         for the chart itself to keep its full diameter */
+      width: calc(2 * var(--pie-chart-radius) + 4rem);
       margin-block: -2rem;
       border: 2rem solid var(--background);
     }
