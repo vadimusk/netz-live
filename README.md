@@ -2,7 +2,7 @@
 
 This repository is a German fork of [National Grid: Live](https://grid.iamkate.com/) ([KateMorley/grid](https://github.com/KateMorley/grid)), a project by [Kate Morley](https://iamkate.com/). Same architecture and visual design, adapted to show the live status of **Germany's** electric power grid instead of Great Britain's: generation mix, price, and carbon intensity, updated every fifteen minutes. The site is bilingual, with German at `/` and English at `/en/`.
 
-This fork is not currently deployed anywhere — it's code only. See "Production" below for what's needed to run it live.
+The fork isn't deployed yet. The update pipeline has been run end to end against a real MariaDB, but never against a live server; see "Production" below for what that needs.
 
 ## Development
 
@@ -60,7 +60,9 @@ Visit counts will be retrieved from Cloudflare if the `CLOUDFLARE_API_TOKEN` and
 
 ### Domain and banner
 
-`classes/UI/UI.php` currently points canonical/`hreflang` URLs at a placeholder `netz-live.example` domain — update these once the site has a real home. The original repository's `public/banner.png` (an Open Graph preview image reading "National Grid: Live") was removed rather than left with the wrong branding; a replacement for this fork is a nice-to-have follow-up, as is a favicon refresh.
+The canonical and `hreflang` URLs come from the `BASE_URL` constant at the top of [UI](classes/UI/UI.php); change it there if the site moves.
+
+The original repository's `public/banner.png` (an Open Graph preview image reading "National Grid: Live") was removed rather than left with the wrong branding, so pages currently carry no `og:image` and will have no preview image when shared. Adding one, and refreshing `favicon.png`, are outstanding.
 
 ## Codebase structure
 
@@ -81,7 +83,7 @@ Unlike the original, which ingests data at mismatched 5-minute and 30-minute res
 This API, run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/), publishes German electricity data sourced from ENTSO-E and the Bundesnetzagentur/SMARD.de, at 15-minute resolution.
 
 - `/public_power` — generation by source (lignite, hard coal, gas, oil, biomass, waste, geothermal, solar, wind onshore/offshore, hydro run-of-river/reservoir/pumped storage, others)
-- `/cbpf` — physical cross-border flows with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland)
+- `/cbet` — scheduled commercial exchanges with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland). Exchanges are used in preference to the physical flows from `/cbpf`, which run an hour or two behind the generation data, leaving the most recent quarter hours reporting zero. They are also what the Bundesnetzagentur publishes as commercial foreign trade.
 - `/co2eq` — estimated carbon intensity of German electricity generation
 - `/price` — day-ahead auction price for the DE-LU bidding zone (this specific dataset is licensed CC BY 4.0 from the Bundesnetzagentur/SMARD.de; see the `license_info` field returned by the API)
 

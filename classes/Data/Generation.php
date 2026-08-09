@@ -64,7 +64,7 @@ class Generation {
     'Hydro pumped storage consumption' => 'pumped_consumption'
   ];
 
-  // maps the "name" field of each /cbpf country to a column; positive values
+  // maps the "name" field of each /cbet country to a column; positive values
   // are imports into Germany, negative values are exports
   private const TRANSFER_SERIES = [
     'Austria'        => 'austria',
@@ -100,8 +100,14 @@ class Generation {
       $data
     );
 
+    // scheduled commercial exchanges are used rather than physical flows:
+    // physical flow data runs an hour or two behind the generation data, so
+    // the most recent quarter hours would carry generation alongside
+    // interconnector figures that are still reported as zero. Exchanges are
+    // agreed ahead of delivery and so are always available, and they are
+    // also what the Bundesnetzagentur publishes as commercial foreign trade.
     $transferTimes = self::ingest(
-      'https://api.energy-charts.info/cbpf?country=de&start=%s&end=%s',
+      'https://api.energy-charts.info/cbet?country=de&start=%s&end=%s',
       'countries',
       self::TRANSFER_SERIES,
       $columns,
@@ -109,11 +115,8 @@ class Generation {
       $data
     );
 
-    // cross-border flow data is typically published a couple of hours later
-    // than domestic generation data, so only commit quarter hours where both
-    // are available; otherwise the most recent rows would show generation
-    // alongside misleadingly-zero interconnector figures, only to be filled
-    // in retroactively once the flow data catches up
+    // exchanges are published ahead of delivery, so this also drops any
+    // quarter hours that are still in the future
     $completeTimes = array_intersect($generationTimes, $transferTimes);
 
     $database->updateGeneration(array_intersect_key(

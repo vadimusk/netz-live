@@ -37,7 +37,7 @@ class I18n {
       'kind.renewables'      => 'Erneuerbare',
       'kind.others'          => 'Sonstige Quellen',
       'kind.transfers'       => 'Austausch',
-      'kind.interconnectors' => 'Grenzkuppelstellen',
+      'kind.interconnectors' => 'Außenhandel',
       'kind.storage'         => 'Speicher',
 
       'source.lignite'       => 'Braunkohle',
@@ -117,7 +117,7 @@ class I18n {
       'kind.renewables'      => 'Renewables',
       'kind.others'          => 'Other sources',
       'kind.transfers'       => 'Transfers',
-      'kind.interconnectors' => 'Interconnections',
+      'kind.interconnectors' => 'Cross-border trade',
       'kind.storage'         => 'Storage',
 
       'source.lignite'       => 'Lignite',
