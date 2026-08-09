@@ -2,7 +2,7 @@
 
 This repository is a German fork of [National Grid: Live](https://grid.iamkate.com/) ([KateMorley/grid](https://github.com/KateMorley/grid)), a project by [Kate Morley](https://iamkate.com/). Same architecture and visual design, adapted to show the live status of **Germany's** electric power grid instead of Great Britain's: generation mix, price, and carbon intensity, updated every fifteen minutes. The site is bilingual, with German at `/` and English at `/en/`.
 
-The fork isn't deployed yet. The update pipeline has been run end to end against a real MariaDB, but never against a live server; see "Production" below for what that needs.
+Live at [netz.vterskov.de](https://netz.vterskov.de/), rebuilt from the API every five minutes.
 
 ## Development
 
@@ -47,6 +47,8 @@ Create a database and a user with `SELECT`, `INSERT`, `UPDATE`, and `DELETE` pri
 ### Web server
 
 Configure the server to serve the contents of the `public` directory, with directory-index resolution enabled so that `/en/` serves `public/en/index.html`. This directory contains only static files, so the web server does not need to support PHP.
+
+The live deployment runs nginx from [nginx.org's own repository](https://nginx.org/en/linux_packages.html#Ubuntu), with its configuration in `/etc/nginx/conf.d/netz-live.conf`. Two details there are worth keeping if you rewrite it: cache lifetimes are chosen with a `map` rather than an `add_header` inside each `location`, because an `add_header` in a location replaces the ones set on the server and would silently drop the security headers from those responses; and the HTML is served `no-cache`, since the update script rewrites it every five minutes and the page polls for a newer copy.
 
 ### Cron
 
