@@ -444,6 +444,15 @@ dl {
     dd {
       font-size: 18px;
     }
+
+    /* The first value here is the period description, which in German runs
+       to a good deal more than the English it replaces ("Vergangene Woche"
+       against "Past week"). Left unwrapped it sets a minimum width wider
+       than a third of a phone screen, pushing the emissions column off the
+       right-hand edge, so this one value is allowed to wrap. */
+    dd:nth-child(2) {
+      white-space: normal;
+    }
   }
 }
 

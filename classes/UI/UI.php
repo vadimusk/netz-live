@@ -41,6 +41,10 @@ class UI {
     $locale       = $this->locale;
     $canonicalUrl = self::BASE_URL . ($locale === 'en' ? 'en/' : '');
 
+    // the English page lives a directory down, so its shared assets, which
+    // are all at the site root, are one level up
+    $root = ($locale === 'en' ? '../' : '');
+
 ?>
 <!DOCTYPE html>
 <html lang="<?= $locale ?>" data-version="<?= max($stylesheetModified, $javascriptModified) ?>">
@@ -53,14 +57,20 @@ class UI {
     <meta property="og:url" content="<?= $canonicalUrl ?>">
     <meta property="og:type" content="website">
     <meta property="og:title" content="<?= I18n::t('site.title', $locale) ?>">
+    <meta property="og:description" content="<?= I18n::t('site.description', $locale) ?>">
     <meta property="og:locale" content="<?= $locale === 'de' ? 'de_DE' : 'en_GB' ?>">
+    <meta property="og:image" content="<?= self::BASE_URL ?>banner-<?= $locale ?>.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="canonical" href="<?= $canonicalUrl ?>">
     <link rel="alternate" hreflang="de" href="<?= self::BASE_URL ?>">
     <link rel="alternate" hreflang="en" href="<?= self::BASE_URL ?>en/">
-    <link rel="stylesheet" href="<?= $locale === 'de' ? '' : '../' ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
-    <link rel="icon" href="<?= $locale === 'de' ? '' : '../' ?>favicon.png" type="image/png">
-    <link rel="icon" href="<?= $locale === 'de' ? '' : '../' ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
-    <script src="<?= $locale === 'de' ? '' : '../' ?>grid.js?<?= $javascriptModified ?>" defer></script>
+    <link rel="stylesheet" href="<?= $root ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
+    <link rel="icon" href="<?= $root ?>favicon.png" type="image/png">
+    <link rel="icon" href="<?= $root ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<?= $root ?>apple-touch-icon.png">
+    <script src="<?= $root ?>grid.js?<?= $javascriptModified ?>" defer></script>
   </head>
   <body>
     <header>

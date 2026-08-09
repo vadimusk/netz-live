@@ -22,7 +22,9 @@ class I18n {
       'period.year'      => 'Vergangenes Jahr',
       'period.year.html' => '<span>Vergangenes </span>Jahr',
       'period.all'      => 'Gesamter Zeitraum',
-      'period.all.html' => 'Gesamter<span> Zeitraum</span>',
+      // narrow screens hide the span, so the split leaves "Gesamt" standing
+      // on its own rather than the bare adjective ending "Gesamter"
+      'period.all.html' => 'Gesamt<span>er Zeitraum</span>',
 
       'status.time'      => 'Zeit',
       'status.price'      => 'Preis',
