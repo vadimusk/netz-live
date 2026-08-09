@@ -44,9 +44,12 @@ class Graphs {
   public function __construct(State $state) {
     $this->state = $state;
 
+    // the minimums and maximums start out holding a zero because a series
+    // can cover no data at all: until a new database has collected a couple
+    // of days, the past week and past year series are empty
     foreach (Graph::cases() as $graph) {
       $minimums = [0];
-      $maximums = [];
+      $maximums = [0];
 
       foreach (Period::cases() as $period) {
         foreach ($period->series($state) as $datum) {
@@ -82,10 +85,17 @@ class Graphs {
       $this->setAxis($graph, $minimum, $maximum, $step);
     }
 
-    $this->setAxis(Graph::Visits, 0, max(...array_map(
+    $visits = array_map(
       fn ($datum) => Graph::Visits->get($datum)[0],
       $state->yearSeries
-    )), self::VISITS_STEP);
+    );
+
+    $this->setAxis(
+      Graph::Visits,
+      0,
+      count($visits) === 0 ? 0 : max($visits),
+      self::VISITS_STEP
+    );
   }
 
   /**

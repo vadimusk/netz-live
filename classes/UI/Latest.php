@@ -50,7 +50,7 @@ class Latest {
     echo '</th><th>';
     echo Value::formatPower($kind->get($sources), $locale);
     echo '</th><th>';
-    echo Value::formatPercentage($kind->get($sources) / $sources->sum(), $locale);
+    echo Value::formatShare($kind->get($sources), $sources->sum(), $locale);
     echo "</th></tr>\n";
 
 ?>
@@ -71,7 +71,7 @@ class Latest {
       echo '"></span></td><td>';
       echo Value::formatPower($source->get($sources), $locale);
       echo '</td><td>';
-      echo Value::formatPercentage($source->get($sources) / $sources->sum(), $locale);
+      echo Value::formatShare($source->get($sources), $sources->sum(), $locale);
 
       echo "</td></tr>\n";
     }

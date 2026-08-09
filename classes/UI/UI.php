@@ -6,6 +6,12 @@ use KateMorley\Grid\State\State;
 
 /** Functions for outputting the user interface. */
 class UI {
+  /**
+   * The site's base URL, used for the canonical and alternate language
+   * links. Change this if the site moves to a different subdomain.
+   */
+  private const BASE_URL = 'https://netz.vterskov.de/';
+
   /** The state. */
   private State $state;
 
@@ -33,7 +39,7 @@ class UI {
     $javascriptModified = filemtime(__DIR__ . '/../../public/grid.js');
 
     $locale       = $this->locale;
-    $canonicalUrl = 'https://netz-live.example/' . ($locale === 'en' ? 'en/' : '');
+    $canonicalUrl = self::BASE_URL . ($locale === 'en' ? 'en/' : '');
 
 ?>
 <!DOCTYPE html>
@@ -49,8 +55,8 @@ class UI {
     <meta property="og:title" content="<?= I18n::t('site.title', $locale) ?>">
     <meta property="og:locale" content="<?= $locale === 'de' ? 'de_DE' : 'en_GB' ?>">
     <link rel="canonical" href="<?= $canonicalUrl ?>">
-    <link rel="alternate" hreflang="de" href="https://netz-live.example/">
-    <link rel="alternate" hreflang="en" href="https://netz-live.example/en/">
+    <link rel="alternate" hreflang="de" href="<?= self::BASE_URL ?>">
+    <link rel="alternate" hreflang="en" href="<?= self::BASE_URL ?>en/">
     <link rel="stylesheet" href="<?= $locale === 'de' ? '' : '../' ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
     <link rel="icon" href="<?= $locale === 'de' ? '' : '../' ?>favicon.png" type="image/png">
     <link rel="icon" href="<?= $locale === 'de' ? '' : '../' ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">

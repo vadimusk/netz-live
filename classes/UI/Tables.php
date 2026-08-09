@@ -74,7 +74,7 @@ class Tables {
       echo '</td><td>';
       echo Value::formatPower($kindOrSource->get($sources), $locale);
       echo '</td><td>';
-      echo Value::formatPercentage($kindOrSource->get($sources) / $sources->sum(), $locale);
+      echo Value::formatShare($kindOrSource->get($sources), $sources->sum(), $locale);
       echo "</td></tr>\n";
     }
   }

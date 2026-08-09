@@ -360,12 +360,21 @@ class Database {
   /**
    * Returns the expression for the averages for each of a set of columns.
    *
+   * The averages are coalesced to zero because a period can legitimately
+   * cover no rows at all: for the first couple of days after a new database
+   * is set up, the past week and past year queries skip the only row there
+   * is, and averaging an empty set yields null, which the typed properties
+   * of a Datum reject.
+   *
    * @param array $columns The columns
    */
   private static function getAveragesExpression(array $columns): string {
     return implode(
       ',',
-      array_map(fn ($column) => 'AVG(' . $column . ') AS ' . $column, $columns)
+      array_map(
+        fn ($column) => 'COALESCE(AVG(' . $column . '),0) AS ' . $column,
+        $columns
+      )
     );
   }
 
