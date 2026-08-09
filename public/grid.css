@@ -489,6 +489,12 @@ dl {
   #live & {
     gap: var(--gap);
 
+    /* Germany has eleven interconnected neighbours, so the interconnectors
+       table is around twelve rows tall — roughly as tall as all four other
+       tables stacked. It therefore gets a column to itself spanning the full
+       height, with the generation and storage tables stacked beside it;
+       splitting it across grid rows instead would stretch the shorter tables
+       to match and leave large gaps between them. */
     @media screen and (min-width:768px) {
       grid-template-columns: max-content 1fr repeat(3, max-content) 1fr repeat(2, max-content);
       grid-row: 2;
@@ -496,37 +502,25 @@ dl {
       .fossils         { grid-area: 1 / 1 / 2 / 5; }
       .renewables      { grid-area: 2 / 1 / 3 / 5; }
       .others          { grid-area: 3 / 1 / 4 / 5; }
-      .interconnectors { grid-area: 3 / 5 / 5 / 9; }
       .storage         { grid-area: 4 / 1 / 5 / 5; }
-    }
-
-    @media screen and (min-width:840px) {
-      .fossils         { grid-area: 1 / 1 / 2 / 5; }
-      .renewables      { grid-area: 2 / 1 / 3 / 5; }
-      .others          { grid-area: 3 / 1 / 4 / 5; }
-      .interconnectors { grid-area: 1 / 5 / 3 / 9; }
-      .storage         { grid-area: 3 / 5 / 4 / 9; }
-    }
-
-    @media screen and (min-width:1220px) and (max-width:1359px) {
-      grid-template-columns: max-content 1fr repeat(3, max-content) 1fr repeat(3, max-content) 1fr repeat(2, max-content);
-
-      .renewables      { grid-area: 2 / 1 / 4 / 5; }
-      .others          { grid-area: 1 / 5 / 3 / 9; }
-      .storage         { grid-area: 3 / 5 / 4 / 9; }
-      .interconnectors { grid-area: 1 / 9 / 4 / 13; }
+      .interconnectors { grid-area: 1 / 5 / 5 / 9; }
     }
 
     @media screen and (min-width:1360px) {
       grid-template-columns: repeat(3, max-content) 1fr 1fr repeat(3, max-content);
       gap: 0;
 
-      .fossils, .interconnectors {
+      .fossils {
         border-radius: var(--rounding) var(--rounding) 0 0;
       }
 
-      .others, .storage {
+      .storage {
         border-radius: 0 0 var(--rounding) var(--rounding);
+      }
+
+      /* spans the full height, so both of its outer corners are rounded */
+      .interconnectors {
+        border-radius: var(--rounding);
       }
     }
 
@@ -570,7 +564,12 @@ dl {
           grid-column: 4;
         }
 
-        .transfers & {
+        /* only the right-hand table mirrors its columns, so that both sides
+           face their labels towards the pie chart in the middle. Storage sits
+           in the left-hand stack, so it keeps the normal column order —
+           mirroring it there would widen the first column to fit the label
+           and push the other labels under the pie chart. */
+        .interconnectors & {
           &:nth-child(2) { grid-column: 1; text-align: right; }
           &:nth-child(3) { grid-column: 3; }
           &:nth-child(4) { grid-column: 2; }
