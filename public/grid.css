@@ -680,8 +680,17 @@ dl {
   border-radius: 50%;
   font-size: 16px;
 
+  /* the chart itself and its label stay pinned to the true circle diameter
+     and centred, even where the card around them (below) stretches taller
+     than that circle to reach the tables on either side — border-radius:50%
+     on a box taller than it is wide draws a capsule, its straight sides
+     framing the circle and its curved ends touching the tables beyond */
   > div, svg {
     grid-area: 1 / 1;
+    width: calc(2 * var(--pie-chart-radius));
+    height: calc(2 * var(--pie-chart-radius));
+    align-self: center;
+    justify-self: center;
   }
 
   > div {
