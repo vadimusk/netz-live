@@ -538,6 +538,22 @@ dl {
       }
     }
 
+    /* the interconnectors table spans the height of the four tables stacked
+       beside it, but their headings and padding make that stack the taller
+       of the two. Its body takes the leftover height and shares it out
+       between the countries, so both columns end level with each other
+       rather than leaving an empty strip below the last country. */
+    @media screen and (min-width:768px) {
+      .interconnectors {
+        align-content: stretch;
+        grid-template-rows: auto 1fr;
+
+        tbody {
+          align-content: space-between;
+        }
+      }
+    }
+
     thead tr {
       --unit-opacity: var(--heading-unit-opacity);
       background: currentColor;
