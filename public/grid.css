@@ -489,12 +489,14 @@ dl {
   #live & {
     gap: var(--gap);
 
-    /* Germany has eleven interconnected neighbours, so the interconnectors
-       table is around twelve rows tall — roughly as tall as all four other
-       tables stacked. It therefore gets a column to itself spanning the full
-       height, with the generation and storage tables stacked beside it;
-       splitting it across grid rows instead would stretch the shorter tables
-       to match and leave large gaps between them. */
+    /* Germany has eleven interconnected neighbours where Great Britain has
+       six, so the interconnectors table is around twelve rows tall — as tall
+       as the three generation tables stacked beside it. It therefore takes a
+       full-height column of its own, and storage, which is a single row,
+       runs along the bottom as a full-width strip. Stacking storage under
+       the interconnectors instead would make that column half again as tall
+       as the generation one, stretching those tables to match and leaving
+       large gaps between them. */
     @media screen and (min-width:768px) {
       grid-template-columns: max-content 1fr repeat(3, max-content) 1fr repeat(2, max-content);
       grid-row: 2;
@@ -502,25 +504,24 @@ dl {
       .fossils         { grid-area: 1 / 1 / 2 / 5; }
       .renewables      { grid-area: 2 / 1 / 3 / 5; }
       .others          { grid-area: 3 / 1 / 4 / 5; }
-      .storage         { grid-area: 4 / 1 / 5 / 5; }
-      .interconnectors { grid-area: 1 / 5 / 5 / 9; }
+      .interconnectors { grid-area: 1 / 5 / 4 / 9; }
+      .storage         { grid-area: 4 / 1 / 5 / 9; }
+
+      .storage :is(thead, tbody, tr) {
+        grid-column-end: span 8;
+      }
     }
 
     @media screen and (min-width:1360px) {
       grid-template-columns: repeat(3, max-content) 1fr 1fr repeat(3, max-content);
       gap: 0;
 
-      .fossils {
+      .fossils, .interconnectors {
         border-radius: var(--rounding) var(--rounding) 0 0;
       }
 
       .storage {
         border-radius: 0 0 var(--rounding) var(--rounding);
-      }
-
-      /* spans the full height, so both of its outer corners are rounded */
-      .interconnectors {
-        border-radius: var(--rounding);
       }
     }
 
@@ -538,11 +539,11 @@ dl {
       }
     }
 
-    /* the interconnectors table spans the height of the four tables stacked
-       beside it, but their headings and padding make that stack the taller
-       of the two. Its body takes the leftover height and shares it out
-       between the countries, so both columns end level with each other
-       rather than leaving an empty strip below the last country. */
+    /* the interconnectors table spans the height of the generation tables
+       stacked beside it, and below 1360px their separate cards are spaced
+       apart, making that stack the taller of the two. Its body takes the
+       leftover height and shares it out between the countries, so both
+       columns end level rather than leaving a strip below the last one. */
     @media screen and (min-width:768px) {
       .interconnectors {
         align-content: stretch;
