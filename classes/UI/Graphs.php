@@ -139,10 +139,11 @@ class Graphs {
    *
    * @param Graph  $graph  The graph
    * @param Period $period The time period
+   * @param string $locale The locale ('de' or 'en')
    */
-  public function output(Graph $graph, Period $period): void {
+  public function output(Graph $graph, Period $period, string $locale): void {
     echo '<div><h3>';
-    echo $graph->describe();
+    echo $graph->describe($locale);
     echo '</h3><div class="graph" data-prefix="';
     echo $graph->prefix();
     echo '" data-suffix="';
@@ -155,8 +156,8 @@ class Graphs {
 
     echo '>';
 
-    $this->outputValueAxis($graph);
-    $this->outputTimeAxis($period);
+    $this->outputValueAxis($graph, $locale);
+    $this->outputTimeAxis($period, $locale);
 
     echo '<svg viewBox="-0.5 -1 ';
     echo count($period->series($this->state));
@@ -168,7 +169,7 @@ class Graphs {
     echo self::HEIGHT + 2;
     echo '" preserveAspectRatio="none">';
 
-    $this->outputBackground($graph, $period);
+    $this->outputOverlay($graph, $period, $locale);
     $this->outputLines($graph, $period);
 
     echo "</svg></div></div>\n";
@@ -177,9 +178,10 @@ class Graphs {
   /**
    * Outputs the value axis.
    *
-   * @param Graph $graph The graph
+   * @param Graph  $graph  The graph
+   * @param string $locale The locale ('de' or 'en')
    */
-  private function outputValueAxis(Graph $graph): void {
+  private function outputValueAxis(Graph $graph, string $locale): void {
     echo '<div>';
 
     for (
@@ -194,7 +196,7 @@ class Graphs {
       }
 
       echo $graph->prefix();
-      echo number_format(abs($label));
+      echo I18n::number(abs($label), 0, $locale);
       echo $graph->suffix();
       echo '</div><div';
 
@@ -212,8 +214,9 @@ class Graphs {
    * Outputs the time axis.
    *
    * @param Period $period The time period
+   * @param string $locale The locale ('de' or 'en')
    */
-  private function outputTimeAxis(Period $period): void {
+  private function outputTimeAxis(Period $period, string $locale): void {
     echo '<div>';
 
     $index = ceil($period->tickmarkInterval() / 2);
@@ -221,7 +224,7 @@ class Graphs {
     foreach ($period->series($this->state) as $time => $_) {
       if ($index % $period->tickmarkInterval() === 0) {
         echo '<div>';
-        echo $period->format($time);
+        echo $period->format($time, $locale);
         echo '</div>';
       }
 
@@ -232,26 +235,27 @@ class Graphs {
   }
 
   /**
-   * Outputs the background.
+   * Outputs the overlay.
    *
    * @param Graph  $graph  The graph
    * @param Period $period The time period
+   * @param string $locale The locale ('de' or 'en')
    */
-  private function outputBackground(Graph $graph, Period $period): void {
-    echo '<g transform="translate(-0.5 -1) scale(1 ';
-    echo self::HEIGHT + 2;
-    echo ')">';
+  private function outputOverlay(Graph $graph, Period $period, string $locale): void {
+    echo '<g transform="translate(-0.5 0)">';
 
     $index = 0;
 
     foreach ($period->series($this->state) as $time => $datum) {
       echo '<rect x="';
       echo $index;
-      echo '" y="0" width="1" height="1" data-time="';
-      echo $period->format($time);
+      echo '" y="0" width="1" height="';
+      echo self::HEIGHT;
+      echo '" data-time="';
+      echo $period->format($time, $locale);
       echo '" data-values="';
       echo implode(' ', array_map(
-        fn ($value) => number_format($value, $graph->decimalPlaces()),
+        fn ($value) => I18n::number($value, $graph->decimalPlaces(), $locale),
         $graph->get($datum)
       ));
       echo '"/>';
@@ -270,35 +274,7 @@ class Graphs {
    */
   private function outputLines(Graph $graph, Period $period): void {
     $minimum = $this->getMinimum($graph);
-    $range   = max(1, $this->getMaximum($graph) - $minimum);
-
-    $levels = $graph->levels();
-
-    if ($levels !== null) {
-      echo '<g mask="url(#';
-      echo $period->id();
-      echo ')">';
-
-      foreach ($levels as $class => $minimumLevel) {
-        echo '<rect class="';
-        echo $class;
-        echo '" x="0" y="-1" width="';
-        echo count($period->series($this->state));
-        echo '" height="';
-
-        if ($minimumLevel === $minimum) {
-          echo self::HEIGHT + 2;
-        } else {
-          echo round((1 - $minimumLevel / $range) * self::HEIGHT) + 1;
-        }
-
-        echo '"/>';
-      }
-
-      echo '</g><mask id="';
-      echo $period->id();
-      echo '" mask-type="alpha">';
-    }
+    $range   = $this->getMaximum($graph) - $minimum;
 
     $lines = array_map(
       fn ($_) => new Line(self::HEIGHT, $minimum, $range),
@@ -313,10 +289,6 @@ class Graphs {
 
     foreach ($graph->classes() as $index => $class) {
       $lines[$index]->output($class);
-    }
-
-    if ($levels !== null) {
-      echo '</mask>';
     }
   }
 }

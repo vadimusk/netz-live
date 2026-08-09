@@ -9,23 +9,25 @@ class Status {
   /**
    * Outputs the status.
    *
-   * @param Datum  $datum The datum
-   * @param string $time  The time
-   * @param bool   $help  Whether to show the help
+   * @param Datum  $datum  The datum
+   * @param string $time   The time
+   * @param string $locale The locale ('de' or 'en')
+   * @param bool   $help   Whether to show the help
    */
   public static function output(
-    Datum $datum,
+    Datum  $datum,
     string $time,
-    bool $help = false
+    string $locale,
+    bool   $help = false
   ): void {
 ?>
           <dl>
-            <dt>Time<?php if ($help) { ?> <span data-help="time"></span><?php } ?></dt>
+            <dt><?= I18n::t('status.time', $locale) ?><?php if ($help) { ?> <span data-help="time"></span><?php } ?></dt>
             <dd><?= $time ?></dd>
-            <dt>Price<?php if ($help) { ?>  <span data-help="price"></span><?php } ?></dt>
-            <dd><?= Value::formatPrice($datum->price) ?><abbr>/MWh</abbr></dd>
-            <dt>Emissions<?php if ($help) { ?> <span data-help="emissions"></span><?php } ?></dt>
-            <dd class="<?= Emissions::get((int)$datum->emissions)->class() ?>"><?= (int)$datum->emissions ?><abbr>g/kWh</abbr></dd>
+            <dt><?= I18n::t('status.price', $locale) ?><?php if ($help) { ?>  <span data-help="price"></span><?php } ?></dt>
+            <dd><?= Value::formatPrice($datum->price, $locale) ?><abbr>/MWh</abbr></dd>
+            <dt><?= I18n::t('status.emissions', $locale) ?><?php if ($help) { ?> <span data-help="emissions"></span><?php } ?></dt>
+            <dd><?= (int)$datum->emissions ?><abbr>g/kWh</abbr></dd>
           </dl>
 <?php
   }
@@ -33,17 +35,22 @@ class Status {
   /**
    * Formats a time as HTML and returns it.
    *
-   * @param int $time The time
+   * @param int    $time   The time
+   * @param string $locale The locale ('de' or 'en')
    */
-  public static function time(int $time): string {
+  public static function time(int $time, string $locale): string {
+    $local = (new \DateTime('@' . $time))->setTimezone(
+      new \DateTimeZone('Europe/Berlin')
+    );
+
     return (
       '<time datetime="'
       . gmdate('Y-m-d\TH:i:s\Z', $time)
       . '">'
-      . date('g:i', $time)
-      . '<abbr>'
-      . date('a', $time)
-      . '</abbr></time>'
+      . ($locale === 'de'
+        ? $local->format('H:i')
+        : $local->format('g:i') . '<abbr>' . $local->format('a') . '</abbr>')
+      . '</time>'
     );
   }
 }

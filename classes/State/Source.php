@@ -2,43 +2,38 @@
 
 namespace KateMorley\Grid\State;
 
+use KateMorley\Grid\UI\I18n;
+
 /** A power source. */
 enum Source: string {
-  case Coal        = 'coal';
-  case Gas         = 'gas';
-  case Solar       = 'solar';
-  case Wind        = 'wind';
-  case Hydro       = 'hydro';
-  case Nuclear     = 'nuclear';
-  case Biomass     = 'biomass';
-  case Belgium     = 'belgium';
-  case Denmark     = 'denmark';
-  case France      = 'france';
-  case Ireland     = 'ireland';
-  case Netherlands = 'netherlands';
-  case Norway      = 'norway';
-  case Pumped      = 'pumped';
-  case Battery     = 'battery';
+  case Lignite       = 'lignite';
+  case HardCoal      = 'hardCoal';
+  case Gas           = 'gas';
+  case Solar         = 'solar';
+  case Wind          = 'wind';
+  case Hydro         = 'hydro';
+  case Biomass       = 'biomass';
+  case Other         = 'other';
+  case Austria       = 'austria';
+  case Belgium       = 'belgium';
+  case CzechRepublic = 'czechRepublic';
+  case Denmark       = 'denmark';
+  case France        = 'france';
+  case Luxembourg    = 'luxembourg';
+  case Netherlands   = 'netherlands';
+  case Norway        = 'norway';
+  case Poland        = 'poland';
+  case Sweden        = 'sweden';
+  case Switzerland   = 'switzerland';
+  case Pumped        = 'pumped';
 
-  /** Returns a description of the source. */
-  public function describe(): string {
-    return match ($this) {
-      self::Coal        => 'Coal',
-      self::Gas         => 'Gas',
-      self::Solar       => 'Solar',
-      self::Wind        => 'Wind',
-      self::Hydro       => 'Hydro',
-      self::Nuclear     => 'Nuclear',
-      self::Biomass     => 'Biomass',
-      self::Belgium     => 'Belgium',
-      self::Denmark     => 'Denmark',
-      self::France      => 'France',
-      self::Ireland     => 'Ireland',
-      self::Netherlands => 'Netherlands',
-      self::Norway      => 'Norway',
-      self::Pumped      => 'Pumped',
-      self::Battery     => 'Battery'
-    };
+  /**
+   * Returns a description of the source.
+   *
+   * @param string $locale The locale ('de' or 'en')
+   */
+  public function describe(string $locale): string {
+    return I18n::t('source.' . $this->value, $locale);
   }
 
   /**

@@ -39,7 +39,7 @@ class Visits {
     ]);
 
     $zoneId    = getenv('CLOUDFLARE_ZONE_ID');
-    $time      = $database->getLatestHalfHourTimestamp();
+    $time      = $database->getLatestQuarterHourTimestamp();
     $startTime = gmdate('Y-m-d\\TH:i:s\\Z', $time - 12 * 60 * 60);
     $endTime   = gmdate('Y-m-d\\TH:i:s\\Z', $time);
 
@@ -127,7 +127,7 @@ class Visits {
     }
 
     return [
-      Time::normalise($item['dimensions']['datetimeHalfOfHour'], 30),
+      Time::normalise($item['dimensions']['datetimeHalfOfHour'], 15),
       $item['sum']['pageViews']
     ];
   }

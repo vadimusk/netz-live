@@ -9,16 +9,21 @@ class UI {
   /** The state. */
   private State $state;
 
+  /** The locale ('de' or 'en'). */
+  private string $locale;
+
   /** The graphs. */
   private Graphs $graphs;
 
   /**
    * Constructs a new instance.
    *
-   * @param State $state The state
+   * @param State  $state  The state
+   * @param string $locale The locale ('de' or 'en')
    */
-  public function __construct(State $state) {
-    $this->state = $state;
+  public function __construct(State $state, string $locale) {
+    $this->state  = $state;
+    $this->locale = $locale;
     $this->graphs = new Graphs($state);
   }
 
@@ -27,59 +32,61 @@ class UI {
     $stylesheetModified = filemtime(__DIR__ . '/../../public/grid.css');
     $javascriptModified = filemtime(__DIR__ . '/../../public/grid.js');
 
+    $locale       = $this->locale;
+    $canonicalUrl = 'https://netz-live.example/' . ($locale === 'en' ? 'en/' : '');
+
 ?>
 <!DOCTYPE html>
-<html lang="en-gb" data-version="<?= max($stylesheetModified, $javascriptModified) ?>">
+<html lang="<?= $locale ?>" data-version="<?= max($stylesheetModified, $javascriptModified) ?>">
   <head>
     <title>
-      National Grid: Live
+      <?= I18n::t('site.title', $locale) ?>
     </title>
-    <meta name="description" content="Shows the live status of Great Britain’s electric power transmission network">
+    <meta name="description" content="<?= I18n::t('site.description', $locale) ?>">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="fediverse:creator" content="@katemorley@hachyderm.io">
-    <meta property="og:url" content="https://grid.iamkate.com/">
+    <meta property="og:url" content="<?= $canonicalUrl ?>">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="National Grid: Live">
-    <meta property="og:image" content="https://grid.iamkate.com/banner.png">
-    <link rel="canonical" href="https://grid.iamkate.com/">
-    <link rel="preload" href="proza-regular.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="proza-light.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="grid.css?<?= $stylesheetModified ?>" type="text/css">
-    <link rel="icon" href="favicon.png" type="image/png">
-    <link rel="icon" href="favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
-    <script src="grid.js?<?= $javascriptModified ?>" defer></script>
+    <meta property="og:title" content="<?= I18n::t('site.title', $locale) ?>">
+    <meta property="og:locale" content="<?= $locale === 'de' ? 'de_DE' : 'en_GB' ?>">
+    <link rel="canonical" href="<?= $canonicalUrl ?>">
+    <link rel="alternate" hreflang="de" href="https://netz-live.example/">
+    <link rel="alternate" hreflang="en" href="https://netz-live.example/en/">
+    <link rel="stylesheet" href="<?= $locale === 'de' ? '' : '../' ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
+    <link rel="icon" href="<?= $locale === 'de' ? '' : '../' ?>favicon.png" type="image/png">
+    <link rel="icon" href="<?= $locale === 'de' ? '' : '../' ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
+    <script src="<?= $locale === 'de' ? '' : '../' ?>grid.js?<?= $javascriptModified ?>" defer></script>
   </head>
   <body>
     <header>
       <p>
-        A project by <a href="https://iamkate.com/">Kate Morley</a> <a href="https://ko-fi.com/katemorley">Donate</a>
+        <?= I18n::t('site.credit', $locale) ?> <a href="<?= I18n::t('site.switchPath', $locale) ?>" hreflang="<?= $locale === 'de' ? 'en' : 'de' ?>"><?= I18n::t('site.switchLabel', $locale) ?></a>
       </p>
       <h1>
-        National Grid: Live
+        <?= I18n::t('site.title', $locale) ?>
       </h1>
       <p>
-        <span>The National Grid is the electric power</span> <span>transmission network for Great Britain</span>
+        <span><?= I18n::t('site.tagline1', $locale) ?></span> <span><?= I18n::t('site.tagline2', $locale) ?></span>
       </p>
     </header>
     <main>
       <div id="live">
         <div>
-<?php Status::output($this->state->latest, Status::time($this->state->time), true); ?>
-<?php Equation::output($this->state->latest->sources, true); ?>
+<?php Status::output($this->state->latest, Status::time($this->state->time, $locale), $locale, true); ?>
+<?php Equation::output($this->state->latest->sources, $locale, true); ?>
         </div>
         <div class="sources">
-<?php Latest::output($this->state->latest->sources, new Sparklines($this->state->daySeries)); ?>
+<?php Latest::output($this->state->latest->sources, new Sparklines($this->state->daySeries), $locale); ?>
         </div>
-        <?php PieChart::output($this->state->latest->sources); ?>
+        <?php PieChart::output($this->state->latest->sources, $locale); ?>
       </div>
 <?php $this->historical(); ?>
     </main>
     <footer>
-<?php Transition::output($this->state); ?>
-<?php About::output($this->state); ?>
+<?php Transition::output($this->state, $locale); ?>
+<?php About::output($this->state, $locale); ?>
     </footer>
     <dialog>
-      <h2>Help</h2>
+      <h2><?= I18n::t('dialog.help', $locale) ?></h2>
       <form method="dialog"><button><svg viewBox="0 0 30 30"><path d="M6,6 24,24"/><path d="M6,24 24,6"/></svg></button></form>
       <div></div>
     </dialog>
@@ -93,10 +100,10 @@ class UI {
 ?>
       <section>
         <div role="tablist">
-          <h2 id="tab-day" role="tab" aria-controls="tab-panel-day" aria-selected="true"><span>Past </span>day</h2>
-          <h2 id="tab-week" role="tab" aria-controls="tab-panel-week" aria-selected="false"><span>Past </span>week</h2>
-          <h2 id="tab-year" role="tab" aria-controls="tab-panel-year" aria-selected="false"><span>Past </span>year</h2>
-          <h2 id="tab-all" role="tab" aria-controls="tab-panel-all" aria-selected="false">All<span> time</span></h2>
+          <h2 id="tab-day" role="tab" aria-controls="tab-panel-day" aria-selected="true"><?= Period::Day->describeHtml($this->locale) ?></h2>
+          <h2 id="tab-week" role="tab" aria-controls="tab-panel-week" aria-selected="false"><?= Period::Week->describeHtml($this->locale) ?></h2>
+          <h2 id="tab-year" role="tab" aria-controls="tab-panel-year" aria-selected="false"><?= Period::Year->describeHtml($this->locale) ?></h2>
+          <h2 id="tab-all" role="tab" aria-controls="tab-panel-all" aria-selected="false"><?= Period::All->describeHtml($this->locale) ?></h2>
         </div>
 <?php
 
@@ -119,14 +126,14 @@ class UI {
 
 ?>
         <div id="tab-panel-<?= $period->id() ?>" role="tabpanel" aria-labelledby="tab-<?= $period->id() ?>" tabindex="0">
-<?php Status::output($datum, $period->describe()); ?>
-<?php Equation::output($datum->sources); ?>
+<?php Status::output($datum, $period->describe($this->locale), $this->locale); ?>
+<?php Equation::output($datum->sources, $this->locale); ?>
           <div>
-            <?php PieChart::output($datum->sources); ?>
+            <?php PieChart::output($datum->sources, $this->locale); ?>
           </div>
           <div>
             <div class="sources">
-<?php Tables::output($datum->sources); ?>
+<?php Tables::output($datum->sources, $this->locale); ?>
             </div>
           </div>
 <?php
@@ -134,7 +141,7 @@ class UI {
     foreach (Graph::cases() as $graph) {
       if ($graph !== Graph::Visits) {
         echo '          ';
-        $this->graphs->output($graph, $period);
+        $this->graphs->output($graph, $period, $this->locale);
       }
     }
 

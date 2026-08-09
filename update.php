@@ -5,7 +5,6 @@
 use KateMorley\Grid\Database;
 use KateMorley\Grid\Environment;
 use KateMorley\Grid\Data\DataException;
-use KateMorley\Grid\Data\Demand;
 use KateMorley\Grid\Data\Emissions;
 use KateMorley\Grid\Data\Generation;
 use KateMorley\Grid\Data\Pricing;
@@ -39,11 +38,6 @@ foreach ([
     Pricing::update($database);
   },
 
-  // demand must be updated after other half-hourly data to exclude future data
-  'Updating demand…     ' => function (Database $database) {
-    Demand::update($database);
-  },
-
   'Updating visits…     ' => function (Database $database) {
     Visits::update($database);
   },
@@ -56,8 +50,16 @@ foreach ([
     $state = $database->getState();
 
     ob_start();
-    (new UI($state))->output();
+    (new UI($state, 'de'))->output();
     file_put_contents(__DIR__ . '/public/index.html', ob_get_clean(), LOCK_EX);
+
+    if (!is_dir(__DIR__ . '/public/en')) {
+      mkdir(__DIR__ . '/public/en');
+    }
+
+    ob_start();
+    (new UI($state, 'en'))->output();
+    file_put_contents(__DIR__ . '/public/en/index.html', ob_get_clean(), LOCK_EX);
 
     file_put_contents(
       __DIR__ . '/public/favicon.svg',

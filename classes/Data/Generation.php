@@ -4,54 +4,80 @@ namespace KateMorley\Grid\Data;
 
 use KateMorley\Grid\Database;
 
-/** Updates generation data. */
+/**
+ * Updates generation data from the Energy-Charts API
+ * (https://api.energy-charts.info), which is run by Fraunhofer ISE and draws
+ * on data from the German transmission system operators via ENTSO-E and the
+ * Bundesnetzagentur.
+ */
 class Generation {
   public const KEYS = [
-    'coal',
-    'ccgt',
-    'ocgt',
-    'nuclear',
+    'lignite',
+    'hard_coal',
+    'gas',
+    'coal_gas',
     'oil',
-    'wind',
-    'hydro',
-    'pumped',
     'biomass',
-    'battery',
+    'waste',
+    'geothermal',
     'other',
-    'ifa',
-    'moyle',
-    'britned',
-    'ewic',
-    'nemo',
-    'ifa2',
-    'nsl',
-    'eleclink',
-    'viking',
-    'greenlink'
+    'solar',
+    'wind_onshore',
+    'wind_offshore',
+    'hydro_run_of_river',
+    'hydro_reservoir',
+    'pumped_generation',
+    'pumped_consumption',
+    'austria',
+    'belgium',
+    'czech_republic',
+    'denmark',
+    'france',
+    'luxembourg',
+    'netherlands',
+    'norway',
+    'poland',
+    'sweden',
+    'switzerland'
   ];
 
-  private const COLUMNS = [
-    'COAL'    => 1,
-    'CCGT'    => 2,
-    'OCGT'    => 3,
-    'NUCLEAR' => 4,
-    'OIL'     => 5,
-    'WIND'    => 6,
-    'NPSHYD'  => 7,
-    'PS'      => 8,
-    'BIOMASS' => 9,
-    'BESS'    => 10,
-    'OTHER'   => 11,
-    'INTFR'   => 12,
-    'INTIRL'  => 13,
-    'INTNED'  => 14,
-    'INTEW'   => 15,
-    'INTNEM'  => 16,
-    'INTIFA2' => 17,
-    'INTNSL'  => 18,
-    'INTELEC' => 19,
-    'INTVKL'  => 20,
-    'INTGRNL' => 21
+  // maps the "name" field of each /public_power production type to a column;
+  // series not listed here (e.g. the aggregate "Cross border electricity
+  // trading" figure, "Load", and the renewable share percentages) are ignored
+  // since the per-country breakdown is read separately from /cbpf
+  private const GENERATION_SERIES = [
+    'Fossil brown coal / lignite'      => 'lignite',
+    'Fossil hard coal'                 => 'hard_coal',
+    'Fossil gas'                       => 'gas',
+    'Fossil coal-derived gas'          => 'coal_gas',
+    'Fossil oil'                       => 'oil',
+    'Biomass'                          => 'biomass',
+    'Waste'                            => 'waste',
+    'Geothermal'                       => 'geothermal',
+    'Others'                           => 'other',
+    'Solar'                            => 'solar',
+    'Wind onshore'                     => 'wind_onshore',
+    'Wind offshore'                    => 'wind_offshore',
+    'Hydro Run-of-River'               => 'hydro_run_of_river',
+    'Hydro water reservoir'            => 'hydro_reservoir',
+    'Hydro pumped storage'             => 'pumped_generation',
+    'Hydro pumped storage consumption' => 'pumped_consumption'
+  ];
+
+  // maps the "name" field of each /cbpf country to a column; positive values
+  // are imports into Germany, negative values are exports
+  private const TRANSFER_SERIES = [
+    'Austria'        => 'austria',
+    'Belgium'        => 'belgium',
+    'Czech Republic' => 'czech_republic',
+    'Denmark'        => 'denmark',
+    'France'         => 'france',
+    'Luxembourg'     => 'luxembourg',
+    'Netherlands'    => 'netherlands',
+    'Norway'         => 'norway',
+    'Poland'         => 'poland',
+    'Sweden'         => 'sweden',
+    'Switzerland'    => 'switzerland'
   ];
 
   /**
@@ -62,13 +88,71 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   public static function update(Database $database): void {
-    $rawData = @file_get_contents(
-      sprintf(
-        'https://data.elexon.co.uk/bmrs/api/v1/datasets/FUELINST/stream?publishDateTimeFrom=%s&publishDateTimeTo=%s',
-        gmdate('Y-m-d\\TH:i:s\\Z', time() - 24 * 60 * 60),
-        gmdate('Y-m-d\\TH:i:s\\Z')
-      )
+    $columns = array_flip(self::KEYS);
+    $data    = [];
+
+    $generationTimes = self::ingest(
+      'https://api.energy-charts.info/public_power?country=de&start=%s&end=%s',
+      'production_types',
+      self::GENERATION_SERIES,
+      $columns,
+      1000, // MW -> GW
+      $data
     );
+
+    $transferTimes = self::ingest(
+      'https://api.energy-charts.info/cbpf?country=de&start=%s&end=%s',
+      'countries',
+      self::TRANSFER_SERIES,
+      $columns,
+      1, // already GW
+      $data
+    );
+
+    // cross-border flow data is typically published a couple of hours later
+    // than domestic generation data, so only commit quarter hours where both
+    // are available; otherwise the most recent rows would show generation
+    // alongside misleadingly-zero interconnector figures, only to be filled
+    // in retroactively once the flow data catches up
+    $completeTimes = array_intersect($generationTimes, $transferTimes);
+
+    $database->updateGeneration(array_intersect_key(
+      $data,
+      array_flip($completeTimes)
+    ));
+  }
+
+  /**
+   * Reads a series of named data from the Energy-Charts API and merges it
+   * into the data array.
+   *
+   * @param string             $urlPattern The URL, with %s placeholders for
+   *                                        the start and end times
+   * @param string             $listKey    The key of the list of series
+   * @param array<string,string> $columns  A map from series name to column
+   * @param array<string,int>    $columnIndexes A map from column to 1-based
+   *                                             row index
+   * @param float              $divisor    The divisor to convert to the
+   *                                        stored unit
+   * @param array              $data       The data array to merge into
+   *
+   * @return array<string> The times found in this endpoint's response
+   *
+   * @throws DataException If the data was invalid
+   */
+  private static function ingest(
+    string $urlPattern,
+    string $listKey,
+    array  $columns,
+    array  $columnIndexes,
+    float  $divisor,
+    array  &$data
+  ): array {
+    $rawData = @file_get_contents(sprintf(
+      $urlPattern,
+      gmdate('Y-m-d\\TH:i\\Z', time() - 24 * 60 * 60),
+      gmdate('Y-m-d\\TH:i\\Z', time())
+    ));
 
     if ($rawData === false) {
       throw new DataException('Failed to read data');
@@ -76,90 +160,64 @@ class Generation {
 
     $jsonData = json_decode($rawData, true);
 
-    if (!is_array($jsonData)) {
+    if (
+      !is_array($jsonData)
+      || !isset($jsonData['unix_seconds']) || !is_array($jsonData['unix_seconds'])
+      || !isset($jsonData[$listKey]) || !is_array($jsonData[$listKey])
+    ) {
       throw new DataException('Missing data');
     }
 
-    $data = [];
+    $times = array_map(
+      fn ($seconds) => is_int($seconds)
+        ? Time::normaliseUnix($seconds, 15)
+        : throw new DataException('Invalid time: ' . $seconds),
+      $jsonData['unix_seconds']
+    );
 
-    foreach ($jsonData as $item) {
-      if (!is_array($item)) {
-        throw new DataException('Invalid item');
-      }
-
-      $time = self::getTime($item);
-
+    foreach ($times as $time) {
       if (!isset($data[$time])) {
-        $data[$time] = array_fill(0, count(self::COLUMNS) + 1, 0);
+        $data[$time] = array_fill(0, count(self::KEYS) + 1, 0);
         $data[$time][0] = $time;
       }
-
-      $data[$time][self::getColumn($item)] = self::getGeneration($item);
     }
 
-    $database->updateGeneration($data);
-  }
+    foreach ($jsonData[$listKey] as $series) {
+      if (
+        !is_array($series)
+        || !isset($series['name']) || !is_string($series['name'])
+        || !isset($series['data']) || !is_array($series['data'])
+      ) {
+        throw new DataException('Invalid series');
+      }
 
-  /**
-   * Returns the time for an item.
-   *
-   * @param array $item The item
-   *
-   * @throws DataException If the time was invalid
-   */
-  private static function getTime(array $item): string {
-    if (!isset($item['startTime'])) {
-      throw new DataException('Missing start time');
+      $column = $columns[$series['name']] ?? null;
+
+      if ($column === null) {
+        continue;
+      }
+
+      if (count($series['data']) !== count($times)) {
+        throw new DataException('Mismatched data length: ' . $series['name']);
+      }
+
+      $row = $columnIndexes[$column] + 1;
+
+      foreach ($series['data'] as $index => $value) {
+        if ($value === null) {
+          continue;
+        }
+
+        if (!is_int($value) && !is_float($value)) {
+          throw new DataException(
+            'Invalid value for ' . $series['name'] . ': ' . $value
+          );
+        }
+
+        $data[$times[$index]][$row] = round($value / $divisor, 2);
+      }
     }
 
-    $time = $item['startTime'];
-
-    if (!is_string($time)) {
-      throw new DataException('Invalid start time: ' . $time);
-    }
-
-    return Time::normalise($item['startTime'], 5);
-  }
-
-  /**
-   * Returns the column for an item.
-   *
-   * @param array $item The item
-   *
-   * @throws DataException If the fuel type was invalid
-   */
-  private static function getColumn(array $item): int {
-    if (!isset($item['fuelType'])) {
-      throw new DataException('Missing fuel type');
-    }
-
-    $fuelType = $item['fuelType'];
-
-    if (!is_string($fuelType) || !isset(self::COLUMNS[$fuelType])) {
-      throw new DataException('Invalid fuel type: ' . $fuelType);
-    }
-
-    return self::COLUMNS[$fuelType];
-  }
-
-  /**
-   * Returns the generation for an item.
-   *
-   * @param array $item The item
-   *
-   * @throws DataException If the generation was invalid
-   */
-  private static function getGeneration(array $item): float {
-    if (!isset($item['generation'])) {
-      throw new DataException('Missing generation');
-    }
-
-    $generation = $item['generation'];
-
-    if (!is_int($generation)) {
-      throw new DataException('Invalid generation value: ' . $generation);
-    }
-
-    return round($generation / 1000, 2);
+    return $times;
   }
 }

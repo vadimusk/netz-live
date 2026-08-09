@@ -7,37 +7,41 @@ class Value {
   /**
    * Formats a power value.
    *
-   * @param float $value The value
+   * @param float  $value  The value
+   * @param string $locale The locale ('de' or 'en')
    */
-  public static function formatPower(float $value): string {
-    return self::format($value, 2);
+  public static function formatPower(float $value, string $locale): string {
+    return self::format($value, 2, $locale);
   }
 
   /**
    * Formats a total power value.
    *
-   * @param float $value The value
+   * @param float  $value  The value
+   * @param string $locale The locale ('de' or 'en')
    */
-  public static function formatTotalPower(float $value): string {
-    return self::format($value, 1);
+  public static function formatTotalPower(float $value, string $locale): string {
+    return self::format($value, 1, $locale);
   }
 
   /**
    * Formats a percentage.
    *
-   * @param float $value The value, as a fraction
+   * @param float  $value  The value, as a fraction
+   * @param string $locale The locale ('de' or 'en')
    */
-  public static function formatPercentage(float $value): string {
-    return self::format(100 * $value, 1);
+  public static function formatPercentage(float $value, string $locale): string {
+    return self::format(100 * $value, 1, $locale);
   }
 
   /**
    * Formats a price.
    *
-   * @param float $value The value
+   * @param float  $value  The value
+   * @param string $locale The locale ('de' or 'en')
    */
-  public static function formatPrice(float $value): string {
-    return self::format($value, 2, '£');
+  public static function formatPrice(float $value, string $locale): string {
+    return self::format($value, 2, $locale, '€');
   }
 
   /**
@@ -45,17 +49,19 @@ class Value {
    *
    * @param float  $value,        The value
    * @param int    $decimalPlaces The number of decimal places to show
+   * @param string $locale        The locale ('de' or 'en')
    * @param string $prefix        An option prefix
    */
   private static function format(
     float  $value,
     int    $decimalPlaces,
+    string $locale,
     string $prefix = ''
   ): string {
     return (
       ($value < 0 ? '−' : '')
       . $prefix
-      . sprintf('%0.' . $decimalPlaces . 'f', abs($value))
+      . I18n::number(abs($value), $decimalPlaces, $locale)
     );
   }
 }

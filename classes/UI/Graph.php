@@ -14,21 +14,25 @@ enum Graph: int {
   case Transfers  = 4;
   case Visits     = 5;
 
-  /** Returns a description of the graph. */
-  public function describe(): string {
-    return match ($this) {
-      self::Price      => 'Price per MWh',
-      self::Emissions  => 'Emissions per kWh',
-      self::Demand     => 'Demand',
-      self::Generation => 'Generation',
-      self::Transfers  => 'Transfers',
-      self::Visits     => 'Weekly visits'
-    };
+  /**
+   * Returns a description of the graph.
+   *
+   * @param string $locale The locale ('de' or 'en')
+   */
+  public function describe(string $locale): string {
+    return I18n::t('graph.' . match ($this) {
+      self::Price      => 'price',
+      self::Emissions  => 'emissions',
+      self::Demand     => 'demand',
+      self::Generation => 'generation',
+      self::Transfers  => 'transfers',
+      self::Visits     => 'visits'
+    }, $locale);
   }
 
   /** Returns the value prefix. */
   public function prefix(): string {
-    return $this === self::Price ? '£' : '';
+    return $this === self::Price ? '€' : '';
   }
 
   /** Returns the value suffix. */
@@ -47,26 +51,6 @@ enum Graph: int {
       self::Demand => 1,
       self::Emissions, self::Visits => 0
     };
-  }
-
-  /**
-   * Returns the levels for colouring lines, as an array mapping classes to
-   * minimum values.
-   *
-   * @return ?array<string,int>
-   */
-  public function levels(): ?array {
-    if ($this !== self::Emissions) {
-      return null;
-    }
-
-    $levels = [];
-
-    foreach (Emissions::cases() as $level) {
-      $levels[$level->class()] = $level->minimum();
-    }
-
-    return $levels;
   }
 
   /**
@@ -104,7 +88,7 @@ enum Graph: int {
   }
 
   /**
-   * Returns the values to show for a datum.
+   * Returns the values to show.
    *
    * @param Datum $datum The datum
    *

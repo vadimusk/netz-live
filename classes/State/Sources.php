@@ -4,21 +4,26 @@ namespace KateMorley\Grid\State;
 
 /** Details of power sources. */
 class Sources {
-  private float $coal;
+  private float $lignite;
+  private float $hardCoal;
   private float $gas;
   private float $solar;
   private float $wind;
   private float $hydro;
-  private float $nuclear;
   private float $biomass;
+  private float $other;
+  private float $austria;
   private float $belgium;
+  private float $czechRepublic;
   private float $denmark;
   private float $france;
-  private float $ireland;
+  private float $luxembourg;
   private float $netherlands;
   private float $norway;
+  private float $poland;
+  private float $sweden;
+  private float $switzerland;
   private float $pumped;
-  private float $battery;
 
   /**
    * Constructs a new instance.
@@ -26,21 +31,32 @@ class Sources {
    * @param array<string,float> $map An array mapping keys to values
    */
   public function __construct(array $map) {
-    $this->coal        = $map['coal'];
-    $this->gas         = $map['ocgt'] + $map['ccgt'];
-    $this->solar       = $map['embedded_solar'];
-    $this->wind        = $map['embedded_wind'] + $map['wind'];
-    $this->hydro       = $map['hydro'];
-    $this->nuclear     = $map['nuclear'];
-    $this->biomass     = $map['biomass'];
-    $this->belgium     = $map['nemo'];
-    $this->denmark     = $map['viking'];
-    $this->france      = $map['ifa'] + $map['ifa2'] + $map['eleclink'];
-    $this->ireland     = $map['moyle'] + $map['ewic'] + $map['greenlink'];
-    $this->netherlands = $map['britned'];
-    $this->norway      = $map['nsl'];
-    $this->pumped      = $map['pumped'];
-    $this->battery     = 0;
+    $this->lignite      = $map['lignite'];
+    $this->hardCoal     = $map['hard_coal'];
+    $this->gas          = $map['gas'] + $map['coal_gas'];
+    $this->solar        = $map['solar'];
+    $this->wind         = $map['wind_onshore'] + $map['wind_offshore'];
+    $this->hydro        = $map['hydro_run_of_river'] + $map['hydro_reservoir'];
+    $this->biomass      = $map['biomass'];
+    $this->other        = (
+      $map['oil'] + $map['waste'] + $map['geothermal'] + $map['other']
+    );
+    $this->austria       = $map['austria'];
+    $this->belgium       = $map['belgium'];
+    $this->czechRepublic = $map['czech_republic'];
+    $this->denmark       = $map['denmark'];
+    $this->france        = $map['france'];
+    $this->luxembourg    = $map['luxembourg'];
+    $this->netherlands   = $map['netherlands'];
+    $this->norway        = $map['norway'];
+    $this->poland        = $map['poland'];
+    $this->sweden        = $map['sweden'];
+    $this->switzerland   = $map['switzerland'];
+
+    // pumped storage consumption is already reported as a negative value, so
+    // adding it to generation gives the net signed power: positive when
+    // generating, negative when pumping
+    $this->pumped = $map['pumped_generation'] + $map['pumped_consumption'];
   }
 
   /**

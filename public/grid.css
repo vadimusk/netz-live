@@ -1,15 +1,3 @@
-@font-face {
-  font-family: 'Proza';
-  font-weight: 300;
-  src: url('proza-light.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Proza';
-  font-weight: 400;
-  src: url('proza-regular.woff2') format('woff2');
-}
-
 :root {
   --width: 36;
   --gap: 1rem;
@@ -39,32 +27,34 @@
   }
 }
 
-.high        { color: #c45; }
-.medium      { color: #e90; }
-.low         { color: #5b5; }
-.generation  { color: #aaa; }
-.price       { color: #000; }
-.emissions   { color: #000; }
-.demand      { color: #000; }
-.fossils     { color: #c45; }
-.renewables  { color: #5b5; }
-.others      { color: #27c; }
-.transfers   { color: #aaa; }
-.coal        { color: #a35; }
-.gas         { color: #e94; }
-.solar       { color: #ed0; }
-.wind        { color: #9d5; }
-.hydro       { color: #2cb; }
-.nuclear     { color: #09c; }
-.biomass     { color: #36b; }
-.belgium     { color: #817; }
-.denmark     { color: #c66; }
-.france      { color: #e94; }
-.ireland     { color: #ed0; }
-.netherlands { color: #9d5; }
-.norway      { color: #2cb; }
-.pumped      { color: #09c; }
-.battery     { color: #639; }
+.generation      { color: #aaa; }
+.price           { color: #000; }
+.emissions       { color: #000; }
+.demand          { color: #000; }
+.fossils         { color: #c45; }
+.renewables      { color: #5b5; }
+.others          { color: #27c; }
+.transfers       { color: #aaa; }
+.lignite         { color: #a63; }
+.hardCoal        { color: #a35; }
+.gas             { color: #e94; }
+.solar           { color: #ed0; }
+.wind            { color: #9d5; }
+.hydro           { color: #2cb; }
+.biomass         { color: #36b; }
+.other           { color: #b85; }
+.pumped          { color: #09c; }
+.austria         { color: #c53; }
+.belgium         { color: #817; }
+.czechRepublic   { color: #47a; }
+.denmark         { color: #d15; }
+.france          { color: #38b; }
+.luxembourg      { color: #4bc; }
+.netherlands     { color: #f82; }
+.norway          { color: #159; }
+.poland          { color: #e56; }
+.sweden          { color: #db3; }
+.switzerland     { color: #a33; }
 
 @media (prefers-color-scheme:dark) {
   :root {
@@ -95,7 +85,7 @@
 
 html {
   height: 100%;
-  font-family: Proza,sans-serif;
+  font-family: -apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   font-weight: 300;
   font-size: clamp(18px, calc(100vw / var(--width)), 20px);
   font-feature-settings: 'tnum';
@@ -409,13 +399,7 @@ dl {
     grid-row: 2;
     font-size: 1.2em;
 
-    &:where(.low, .medium, .high) {
-      font-weight: 400;
-    }
-
     abbr {
-      color: var(--content-text);
-      font-weight: 300;
       opacity: var(--unit-opacity);
     }
   }
@@ -696,8 +680,17 @@ dl {
   border-radius: 50%;
   font-size: 16px;
 
+  /* the chart itself and its label stay pinned to the true circle diameter
+     and centred, even where the card around them (below) stretches taller
+     than that circle to reach the tables on either side — border-radius:50%
+     on a box taller than it is wide draws a capsule, its straight sides
+     framing the circle and its curved ends touching the tables beyond */
   > div, svg {
     grid-area: 1 / 1;
+    width: calc(2 * var(--pie-chart-radius));
+    height: calc(2 * var(--pie-chart-radius));
+    align-self: center;
+    justify-self: center;
   }
 
   > div {
@@ -745,6 +738,28 @@ dl {
     @media screen and (min-width:1360px) {
       grid-area: 2 / 2 / 3 / 3;
       font-size: 1rem;
+
+      /* Here the chart shares a row with the source tables, and Germany's
+         eleven interconnectors make that row far taller than the chart is
+         wide, so a card stretched to fill it would be drawn as an ellipse.
+         The card is therefore transparent, letting the tables' own white
+         background carry straight through behind the chart, and the ring
+         is drawn around the circle itself: a round emblem inset into the
+         card, which is how it reads upstream where the tables happen to be
+         about as tall as the chart is wide. */
+      margin-block: 0;
+      border: 0;
+      background: transparent;
+
+      /* the background and ring go on the label layer, which sits below the
+         chart, so that the tables' header bars are clipped by the circle
+         instead of showing through the doughnut's hole, without the chart
+         covering the label */
+      > div {
+        border-radius: 50%;
+        background: var(--content-background);
+        box-shadow: 0 0 0 2rem var(--background);
+      }
     }
   }
 
@@ -804,73 +819,60 @@ dl {
     width: 100%;
     height: var(--graph-height);
     margin-block: calc(0.5em - 1px);
+  }
 
-    rect {
-      fill: transparent;
+  path {
+    stroke: currentcolor;
+    pointer-events: none;
+  }
 
-      &:hover {
-        fill: var(--graph-highlight);
-      }
+  rect {
+    fill: transparent;
+
+    &:hover {
+      fill: var(--graph-highlight);
+    }
+  }
+
+  svg + div {
+    position: absolute;
+    top: calc(var(--graph-height) / 2 + 0.5em);
+    width: max-content;
+    max-width: calc(100vw / 2 - 4 * var(--key-padding));
+    padding: var(--key-padding);
+    background: var(--content-background);
+    color: var(--content-text);
+    border: 1px solid var(--key-line);
+    border-radius: var(--rounding);
+    text-align: left;
+    transform: translateY(-50%);
+    pointer-events: none;
+
+    div {
+      margin-bottom: 0.75em;
+      font-size: 16px;
+      font-weight: 400;
+      text-align: center;
     }
 
-    g[mask] rect {
-      fill: currentColor;
-      pointer-events: none;
+    table {
+      grid-template-columns: max-content 1fr max-content;
     }
 
-    path {
-      stroke: currentcolor;
-      pointer-events: none;
+    tr {
+      gap: 7px;
     }
 
-    + div {
-      position: absolute;
-      top: calc(var(--graph-height) / 2 + 0.5em);
-      width: max-content;
-      max-width: calc(100vw / 2 - 4 * var(--key-padding));
-      padding: var(--key-padding);
-      background: var(--content-background);
-      color: var(--content-text);
-      border: 1px solid var(--key-line);
-      border-radius: var(--rounding);
-      text-align: left;
-      transform: translateY(-50%);
-      pointer-events: none;
+    td:nth-child(1)::after {
+      margin-top: 0;
+    }
 
-      div {
-        margin-bottom: 0.75em;
-        font-size: 16px;
-        font-weight: 400;
-        text-align: center;
-      }
+    td:nth-child(3) {
+      white-space: nowrap;
+    }
 
-      table {
-        grid-template-columns: max-content 1fr max-content;
-      }
-
-      tr {
-        gap: 7px;
-
-        &:only-child {
-          grid-template-columns: 1fr max-content;
-
-          :nth-child(1) {
-            display: none;
-          }
-        }
-      }
-
-      td:nth-child(1)::after {
-        margin-top: 0;
-      }
-
-      td:nth-child(3) {
-        white-space: nowrap;
-      }
-
-      td:nth-child(3)::after {
-        content: none;
-      }
+    td:nth-child(3)::after {
+      content: none;
     }
   }
 }
@@ -927,30 +929,6 @@ dialog {
 
   p + p {
     margin-top: 1rem;
-  }
-
-  ul {
-    margin-block: 0.5rem 0;
-    padding-left: 0;
-
-    li {
-      list-style-type: none;
-      padding-top: 0.5rem;
-
-      &::before {
-        content: '';
-        display: inline-block;
-        width: 1rem;
-        height: 1rem;
-        margin-right: 0.5rem;
-        vertical-align: center;
-        background: currentColor;
-      }
-
-      span {
-        color: var(--content-text);
-      }
-    }
   }
 
   button {

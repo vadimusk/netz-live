@@ -15,15 +15,18 @@ class PieChart {
    * Outputs a pie chart.
    *
    * @param Sources $sources The sources
+   * @param string  $locale  The locale ('de' or 'en')
    */
-  public static function output(Sources $sources): void {
+  public static function output(Sources $sources, string $locale): void {
     $generation = Kind::Generation->get($sources);
     $demand     = $generation + Kind::Transfers->get($sources);
 
-    $generationPower      = Value::formatTotalPower($generation);
-    $generationPercentage = Value::formatPercentage($generation / $demand);
+    $generationPower      = Value::formatTotalPower($generation, $locale);
+    $generationPercentage = Value::formatPercentage($generation / $demand, $locale);
 
-    echo '<div class="pie-chart"><div><div>Generation</div><div class="generation"></div><div><span>';
+    echo '<div class="pie-chart"><div><div>';
+    echo I18n::t('kind.generation', $locale);
+    echo '</div><div class="generation"></div><div><span>';
     echo $generationPower;
     echo '</span>GW</div><div><span>';
     echo $generationPercentage;
@@ -37,14 +40,16 @@ class PieChart {
       $sources,
       Kind::Generation->sources(),
       self::OUTER_RADIUS,
-      1
+      1,
+      $locale
     );
 
     self::outputRing(
       $sources,
       [Kind::Fossils, Kind::Renewables, Kind::Others],
       self::INNER_RADIUS,
-      self::OUTER_RADIUS
+      self::OUTER_RADIUS,
+      $locale
     );
 
     echo "</svg></div>\n";
@@ -57,12 +62,14 @@ class PieChart {
    * @param array<Kind>|array<Source> $kindsOrSources The kinds or sources
    * @param float                     $innerRadius    The inner radius
    * @param float                     $outerRadius    The outer radius
+   * @param string                    $locale         The locale ('de' or 'en')
    */
   private static function outputRing(
     Sources $sources,
     array   $kindsOrSources,
     float   $innerRadius,
-    float   $outerRadius
+    float   $outerRadius,
+    string  $locale
   ): void {
     $offset = 0;
 
@@ -74,8 +81,8 @@ class PieChart {
 
         self::outputArc(
           $kindOrSource->value,
-          Value::formatPower($power),
-          Value::formatPercentage($power / $sources->sum()),
+          Value::formatPower($power, $locale),
+          Value::formatPercentage($power / $sources->sum(), $locale),
           $fraction,
           $offset,
           $innerRadius,
