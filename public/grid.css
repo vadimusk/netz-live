@@ -894,6 +894,16 @@ dl {
 
     tr {
       gap: 7px;
+
+      /* a graph with a single series has nothing to distinguish, so the key
+         drops the colour swatch and shows just the label and the value */
+      &:only-child {
+        grid-template-columns: 1fr max-content;
+
+        :nth-child(1) {
+          display: none;
+        }
+      }
     }
 
     td:nth-child(1)::after {
