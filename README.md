@@ -58,9 +58,7 @@ The script outputs details of the update process to standard output, and details
 
 ### Fonts
 
-The site is set in [Source Sans 3](https://fonts.google.com/specimen/Source+Sans+3), replacing the commercial Proza the upstream project uses. It is served from `public` rather than a font CDN, so that no third party sees visitors and the page's content security policy can stay restricted to the site's own origin. The licence is in `public/SOURCE-SANS-LICENCE.txt`.
-
-The file is a variable font, so one 29KB download covers the whole weight range and the body text can sit at 300 with the headings at 400, matching upstream. Proza Libre, the free version of Proza, was tried first but starts at 400, which made the page read heavier than the original.
+The site is set in a system font stack (`-apple-system`, `Segoe UI`, `Roboto`, `Helvetica Neue`, `Arial`) rather than the commercial Proza the upstream project uses. Proza Libre, the free version of Proza, and Source Sans 3 were both tried in turn — the former reads heavier than upstream since it starts at weight 400 where upstream's body text is 300, and the latter draws a visibly different question mark glyph on the help icons, which is subtle enough to be hard to place but stood out once several were on screen together. The system stack sidesteps both: no face to license, no glyph shapes to compare against Proza's, and it renders in whatever the visitor's own OS already uses for its interface.
 
 ### Cloudflare
 
