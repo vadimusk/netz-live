@@ -167,12 +167,71 @@ class Database {
   }
 
   /**
-   * Updates the generation data.
+   * Updates the generation and cross-border flow data.
    *
-   * @param array $data The generation data
+   * @param array         $generation        The generation data
+   * @param array<string> $generationColumns The generation columns
+   * @param array         $transfers         The flow data
+   * @param array<string> $transferColumns   The flow columns
+   * @param ?string       $latestTransfer    The latest quarter hour the flows
+   *                                          cover, quoted for SQL, or null
    */
-  public function updateGeneration(array $data): void {
-    $this->updatePastTimeSeries('past_quarter_hours', Generation::KEYS, $data);
+  public function updateGeneration(
+    array   $generation,
+    array   $generationColumns,
+    array   $transfers,
+    array   $transferColumns,
+    ?string $latestTransfer
+  ): void {
+    $this->updatePastTimeSeries(
+      'past_quarter_hours',
+      $generationColumns,
+      $generation
+    );
+
+    $this->updatePastTimeSeries(
+      'past_quarter_hours',
+      $transferColumns,
+      $transfers
+    );
+
+    if ($latestTransfer !== null) {
+      $this->propagateTransfers($transferColumns, $latestTransfer);
+    }
+  }
+
+  /**
+   * Carries the most recent flow figures forward over the quarter hours the
+   * flow data doesn't reach yet.
+   *
+   * Flows are published a couple of hours after the fact, while generation
+   * is current, so without this the newest quarter hours would show a full
+   * generation mix against no trade at all. The carried-forward figures are
+   * overwritten with the real ones as soon as they arrive, and the same
+   * approach is what upstream uses for its own slower series.
+   *
+   * @param array<string> $columns The flow columns
+   * @param string        $time    The latest quarter hour the flows cover,
+   *                                quoted for SQL
+   */
+  private function propagateTransfers(array $columns, string $time): void {
+    $row = $this->connection->query(
+      'SELECT ' . implode(',', $columns)
+      . ' FROM past_quarter_hours WHERE time=' . $time
+    )->fetch_assoc();
+
+    if ($row === null) {
+      return;
+    }
+
+    $this->connection->query(
+      'UPDATE past_quarter_hours SET '
+      . implode(',', array_map(
+        fn ($column) => $column . '=' . (float)$row[$column],
+        $columns
+      ))
+      . ' WHERE time>' . $time
+    );
   }
 
   /**

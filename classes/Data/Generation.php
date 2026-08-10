@@ -64,7 +64,42 @@ class Generation {
     'Hydro pumped storage consumption' => 'pumped_consumption'
   ];
 
-  // maps the "name" field of each /cbet country to a column; positive values
+  // the two groups are written separately, because the flows are published
+  // a couple of hours behind the generation and shouldn't hold it back
+  private const GENERATION_COLUMNS = [
+    'lignite',
+    'hard_coal',
+    'gas',
+    'coal_gas',
+    'oil',
+    'biomass',
+    'waste',
+    'geothermal',
+    'other',
+    'solar',
+    'wind_onshore',
+    'wind_offshore',
+    'hydro_run_of_river',
+    'hydro_reservoir',
+    'pumped_generation',
+    'pumped_consumption'
+  ];
+
+  private const TRANSFER_COLUMNS = [
+    'austria',
+    'belgium',
+    'czech_republic',
+    'denmark',
+    'france',
+    'luxembourg',
+    'netherlands',
+    'norway',
+    'poland',
+    'sweden',
+    'switzerland'
+  ];
+
+  // maps the "name" field of each /cbpf country to a column; positive values
   // are imports into Germany, negative values are exports
   private const TRANSFER_SERIES = [
     'Austria'        => 'austria',
@@ -117,21 +152,51 @@ class Generation {
       $data
     );
 
-    // Only quarter hours carried by both series are committed. Flows lag
-    // generation, and the lag isn't reported as missing data: the trailing
-    // quarter hours come back with most neighbours at exactly zero, so
-    // taking whatever the endpoint returned would write those zeros in as
-    // though they were real. The site therefore runs as far behind as the
-    // flow data does.
-    $completeTimes = array_intersect(
-      $generationTimes,
-      self::withReportedTransfers($transferTimes, $data, $columns)
+    // The two series are written separately so that the slower one doesn't
+    // hold the faster one back. Generation is committed as far as it goes,
+    // and flows only for the quarter hours they actually cover — the lag
+    // isn't reported as missing data, the trailing quarter hours simply come
+    // back with every neighbour at exactly zero, and writing those in would
+    // read as an hour of no trade at all.
+    $reportedTimes = self::withReportedTransfers(
+      $transferTimes,
+      $data,
+      $columns
     );
 
-    $database->updateGeneration(array_intersect_key(
-      $data,
-      array_flip($completeTimes)
-    ));
+    $database->updateGeneration(
+      self::rows($data, $generationTimes, self::GENERATION_COLUMNS, $columns),
+      self::GENERATION_COLUMNS,
+      self::rows($data, $reportedTimes, self::TRANSFER_COLUMNS, $columns),
+      self::TRANSFER_COLUMNS,
+      count($reportedTimes) === 0 ? null : max($reportedTimes)
+    );
+  }
+
+  /**
+   * Builds insertable rows for a subset of times and columns.
+   *
+   * @param array             $data          The data collected so far
+   * @param array<string>     $times         The times to include
+   * @param array<string>     $columns       The columns to include
+   * @param array<string,int> $columnIndexes A map from column to row index
+   */
+  private static function rows(
+    array $data,
+    array $times,
+    array $columns,
+    array $columnIndexes
+  ): array {
+    return array_map(
+      fn ($time) => array_merge(
+        [$time],
+        array_map(
+          fn ($column) => $data[$time][$columnIndexes[$column] + 1],
+          $columns
+        )
+      ),
+      $times
+    );
   }
 
   /**
