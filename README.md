@@ -56,6 +56,10 @@ Set up a cron job to execute the `update.php` script (using the [PHP CLI SAPI](h
 
 The script outputs details of the update process to standard output, and details of errors to standard error. An error with an individual data source does not abort the rest of the update process.
 
+### Fonts
+
+The site is set in [Proza Libre](https://fonts.google.com/specimen/Proza+Libre), the free version of Proza, which is the commercial face the upstream project uses. It is served from `public` rather than a font CDN, so that no third party sees visitors and the page's content security policy can stay restricted to the site's own origin. Proza Libre carries no 300 weight, so the body text is set in 400 and the headings, which upstream sets in 400, in 500. The licence is in `public/PROZA-LIBRE-LICENCE.txt`.
+
 ### Cloudflare
 
 Visit counts will be retrieved from Cloudflare if the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` environment variables are set to non-empty strings. The Cloudflare API token must be configured to provide Analytics Read access for the zone.
@@ -64,7 +68,7 @@ Visit counts will be retrieved from Cloudflare if the `CLOUDFLARE_API_TOKEN` and
 
 The canonical and `hreflang` URLs come from the `BASE_URL` constant at the top of [UI](classes/UI/UI.php); change it there if the site moves.
 
-The original repository's `public/banner.png` (an Open Graph preview image reading "National Grid: Live") was removed rather than left with the wrong branding, so pages currently carry no `og:image` and will have no preview image when shared. Adding one, and refreshing `favicon.png`, are outstanding.
+The original repository's `public/banner.png` (an Open Graph preview image reading "National Grid: Live") was replaced with `banner-de.png` and `banner-en.png`, drawn in the site's own palette, along with a matching `favicon.png` and `apple-touch-icon.png`.
 
 ## Codebase structure
 
