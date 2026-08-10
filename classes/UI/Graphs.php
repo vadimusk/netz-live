@@ -187,7 +187,7 @@ class Graphs {
     echo self::HEIGHT + 2;
     echo '" preserveAspectRatio="none">';
 
-    $this->outputOverlay($graph, $period, $locale);
+    $this->outputBackground($graph, $period, $locale);
     $this->outputLines($graph, $period);
 
     echo "</svg></div></div>\n";
@@ -253,23 +253,23 @@ class Graphs {
   }
 
   /**
-   * Outputs the overlay.
+   * Outputs the background.
    *
    * @param Graph  $graph  The graph
    * @param Period $period The time period
    * @param string $locale The locale ('de' or 'en')
    */
-  private function outputOverlay(Graph $graph, Period $period, string $locale): void {
-    echo '<g transform="translate(-0.5 0)">';
+  private function outputBackground(Graph $graph, Period $period, string $locale): void {
+    echo '<g transform="translate(-0.5 -1) scale(1 ';
+    echo self::HEIGHT + 2;
+    echo ')">';
 
     $index = 0;
 
     foreach ($period->series($this->state) as $time => $datum) {
       echo '<rect x="';
       echo $index;
-      echo '" y="0" width="1" height="';
-      echo self::HEIGHT;
-      echo '" data-time="';
+      echo '" y="0" width="1" height="1" data-time="';
       echo $period->format($time, $locale);
       echo '" data-values="';
       echo implode(' ', array_map(
@@ -292,7 +292,39 @@ class Graphs {
    */
   private function outputLines(Graph $graph, Period $period): void {
     $minimum = $this->getMinimum($graph);
-    $range   = $this->getMaximum($graph) - $minimum;
+    $range   = max(1, $this->getMaximum($graph) - $minimum);
+
+    $levels = $graph->levels();
+
+    // Where a graph has levels, the line takes its colour from the band it
+    // passes through. The bands are drawn as stacked full-width rectangles
+    // and the line itself becomes a mask over them, so a single line changes
+    // colour partway along rather than being one flat colour.
+    if ($levels !== null) {
+      echo '<g mask="url(#';
+      echo $period->id();
+      echo ')">';
+
+      foreach ($levels as $class => $minimumLevel) {
+        echo '<rect class="';
+        echo $class;
+        echo '" x="0" y="-1" width="';
+        echo count($period->series($this->state));
+        echo '" height="';
+
+        if ($minimumLevel === $minimum) {
+          echo self::HEIGHT + 2;
+        } else {
+          echo round((1 - $minimumLevel / $range) * self::HEIGHT) + 1;
+        }
+
+        echo '"/>';
+      }
+
+      echo '</g><mask id="';
+      echo $period->id();
+      echo '" mask-type="alpha">';
+    }
 
     $lines = array_map(
       fn ($_) => new Line(self::HEIGHT, $minimum, $range),
@@ -307,6 +339,10 @@ class Graphs {
 
     foreach ($graph->classes() as $index => $class) {
       $lines[$index]->output($class);
+    }
+
+    if ($levels !== null) {
+      echo '</mask>';
     }
   }
 }
