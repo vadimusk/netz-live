@@ -51,32 +51,6 @@ class Status {
         ? $local->format('H:i')
         : $local->format('g:i') . '<abbr>' . $local->format('a') . '</abbr>')
       . '</time>'
-      . self::age($time, $locale)
-    );
-  }
-
-  /**
-   * Returns the age of the data as HTML, or an empty string if it is recent
-   * enough not to need explaining.
-   *
-   * Cross-border flows are published a couple of hours after the fact, and
-   * the site waits for them, so the time shown is not the current one. Saying
-   * how far behind it is stops that reading as a stuck page.
-   *
-   * @param int    $time   The time of the data
-   * @param string $locale The locale ('de' or 'en')
-   */
-  private static function age(int $time, string $locale): string {
-    $hours = (int)floor((time() - $time) / 3600);
-
-    if ($hours < 1) {
-      return '';
-    }
-
-    return (
-      '<abbr class="age">'
-      . I18n::t('status.age', $locale, [$hours])
-      . '</abbr>'
     );
   }
 }

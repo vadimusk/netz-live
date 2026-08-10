@@ -66,7 +66,7 @@ class UI {
     <link rel="canonical" href="<?= $canonicalUrl ?>">
     <link rel="alternate" hreflang="de" href="<?= self::BASE_URL ?>">
     <link rel="alternate" hreflang="en" href="<?= self::BASE_URL ?>en/">
-    <link rel="preload" href="<?= $root ?>proza-libre-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="<?= $root ?>source-sans-3.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="<?= $root ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
     <link rel="icon" href="<?= $root ?>favicon.png" type="image/png">
     <link rel="icon" href="<?= $root ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">

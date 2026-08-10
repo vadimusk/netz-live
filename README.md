@@ -58,9 +58,9 @@ The script outputs details of the update process to standard output, and details
 
 ### Fonts
 
-The site is set in [Proza Libre](https://fonts.google.com/specimen/Proza+Libre), the free version of Proza, which is the commercial face the upstream project uses. It is served from `public` rather than a font CDN, so that no third party sees visitors and the page's content security policy can stay restricted to the site's own origin. The licence is in `public/PROZA-LIBRE-LICENCE.txt`.
+The site is set in [Source Sans 3](https://fonts.google.com/specimen/Source+Sans+3), replacing the commercial Proza the upstream project uses. It is served from `public` rather than a font CDN, so that no third party sees visitors and the page's content security policy can stay restricted to the site's own origin. The licence is in `public/SOURCE-SANS-LICENCE.txt`.
 
-Upstream sets its body text in 300 and its headings in 400. Proza Libre starts at 400, so everything is set in that: taking the headings up to 500 to restore the contrast made the page read heavier than the original rather than lighter. Matching upstream exactly would mean licensing Proza itself from [Bureau Roffa](http://bureauroffa.com/) and dropping `proza-light.woff2` and `proza-regular.woff2` into `public`.
+The file is a variable font, so one 29KB download covers the whole weight range and the body text can sit at 300 with the headings at 400, matching upstream. Proza Libre, the free version of Proza, was tried first but starts at 400, which made the page read heavier than the original.
 
 ### Cloudflare
 
