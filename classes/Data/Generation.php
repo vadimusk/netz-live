@@ -100,14 +100,16 @@ class Generation {
       $data
     );
 
-    // scheduled commercial exchanges are used rather than physical flows:
-    // physical flow data runs an hour or two behind the generation data, so
-    // the most recent quarter hours would carry generation alongside
-    // interconnector figures that are still reported as zero. Exchanges are
-    // agreed ahead of delivery and so are always available, and they are
-    // also what the Bundesnetzagentur publishes as commercial foreign trade.
+    // Physical flows are used rather than the scheduled commercial exchanges
+    // from /cbet. Germany sits inside the Continental European synchronous
+    // grid, where power reaches a buyer along whichever lines carry it, so a
+    // sale to one neighbour can flow through another: over a day the two
+    // series agree on the country's overall balance to within a few hundred
+    // megawatts, but disagree per neighbour by a gigawatt or more, at times
+    // even in direction. Flows are what actually happened, at the cost of
+    // being published a couple of hours later.
     $transferTimes = self::ingest(
-      'https://api.energy-charts.info/cbet?country=de&start=%s&end=%s',
+      'https://api.energy-charts.info/cbpf?country=de&start=%s&end=%s',
       'countries',
       self::TRANSFER_SERIES,
       $columns,
@@ -115,13 +117,58 @@ class Generation {
       $data
     );
 
-    // exchanges are published ahead of delivery, so this also drops any
-    // quarter hours that are still in the future
-    $completeTimes = array_intersect($generationTimes, $transferTimes);
+    // Only quarter hours carried by both series are committed. Flows lag
+    // generation, and the lag isn't reported as missing data: the trailing
+    // quarter hours come back with most neighbours at exactly zero, so
+    // taking whatever the endpoint returned would write those zeros in as
+    // though they were real. The site therefore runs as far behind as the
+    // flow data does.
+    $completeTimes = array_intersect(
+      $generationTimes,
+      self::withReportedTransfers($transferTimes, $data, $columns)
+    );
 
     $database->updateGeneration(array_intersect_key(
       $data,
       array_flip($completeTimes)
+    ));
+  }
+
+  /**
+   * Filters out quarter hours whose flows haven't been reported yet.
+   *
+   * The endpoint doesn't mark them as missing: it returns the quarter hour
+   * with every neighbour at exactly zero. Germany borders eleven grids, and
+   * all eleven sitting at precisely zero is not something that happens, so
+   * a row like that is taken to mean the figures haven't arrived.
+   *
+   * @param array<string>     $times         The times to filter
+   * @param array             $data          The data collected so far
+   * @param array<string,int> $columnIndexes A map from column to row index
+   *
+   * @return array<string> The times whose flows have been reported
+   */
+  private static function withReportedTransfers(
+    array $times,
+    array $data,
+    array $columnIndexes
+  ): array {
+    $rows = array_map(
+      fn ($column) => $columnIndexes[$column] + 1,
+      array_values(self::TRANSFER_SERIES)
+    );
+
+    return array_values(array_filter(
+      $times,
+      function ($time) use ($data, $rows) {
+        foreach ($rows as $row) {
+          if ($data[$time][$row] != 0) {
+            return true;
+          }
+        }
+
+        return false;
+      }
     ));
   }
 

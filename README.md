@@ -58,7 +58,9 @@ The script outputs details of the update process to standard output, and details
 
 ### Fonts
 
-The site is set in [Proza Libre](https://fonts.google.com/specimen/Proza+Libre), the free version of Proza, which is the commercial face the upstream project uses. It is served from `public` rather than a font CDN, so that no third party sees visitors and the page's content security policy can stay restricted to the site's own origin. Proza Libre carries no 300 weight, so the body text is set in 400 and the headings, which upstream sets in 400, in 500. The licence is in `public/PROZA-LIBRE-LICENCE.txt`.
+The site is set in [Proza Libre](https://fonts.google.com/specimen/Proza+Libre), the free version of Proza, which is the commercial face the upstream project uses. It is served from `public` rather than a font CDN, so that no third party sees visitors and the page's content security policy can stay restricted to the site's own origin. The licence is in `public/PROZA-LIBRE-LICENCE.txt`.
+
+Upstream sets its body text in 300 and its headings in 400. Proza Libre starts at 400, so everything is set in that: taking the headings up to 500 to restore the contrast made the page read heavier than the original rather than lighter. Matching upstream exactly would mean licensing Proza itself from [Bureau Roffa](http://bureauroffa.com/) and dropping `proza-light.woff2` and `proza-regular.woff2` into `public`.
 
 ### Cloudflare
 
@@ -89,7 +91,11 @@ Unlike the original, which ingests data at mismatched 5-minute and 30-minute res
 This API, run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/), publishes German electricity data sourced from ENTSO-E and the Bundesnetzagentur/SMARD.de, at 15-minute resolution.
 
 - `/public_power` — generation by source (lignite, hard coal, gas, oil, biomass, waste, geothermal, solar, wind onshore/offshore, hydro run-of-river/reservoir/pumped storage, others)
-- `/cbet` — scheduled commercial exchanges with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland). Exchanges are used in preference to the physical flows from `/cbpf`, which run an hour or two behind the generation data, leaving the most recent quarter hours reporting zero. They are also what the Bundesnetzagentur publishes as commercial foreign trade.
+- `/cbpf` — physical cross-border flows with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland)
+
+  Flows are used in preference to the scheduled commercial exchanges from `/cbet`. Germany sits inside the Continental European synchronous grid, where power reaches a buyer along whichever lines carry it, so a sale to one neighbour can flow through another: measured over a day the two series agree on the country's overall balance to within a few hundred megawatts, but disagree per neighbour by a gigawatt or more, at times even in direction. Flows are what actually happened.
+
+  The cost is that they are published a couple of hours after the fact, and the endpoint doesn't report the gap as missing data — the trailing quarter hours come back with every neighbour at exactly zero. `Generation::withReportedTransfers()` discards those, and only quarter hours carried by both the generation and the flow data are written, so the site runs as far behind as the flows do. The header says so, and the help behind the time and the transfers explains why.
 - `/co2eq` — estimated carbon intensity of German electricity generation
 - `/price` — day-ahead auction price for the DE-LU bidding zone (this specific dataset is licensed CC BY 4.0 from the Bundesnetzagentur/SMARD.de; see the `license_info` field returned by the API)
 

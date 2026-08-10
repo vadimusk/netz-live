@@ -10,6 +10,7 @@ class I18n {
       'site.description'   => 'Zeigt den Live-Status des deutschen Stromnetzes: Erzeugungsmix, Preis und CO₂-Intensität',
       'site.tagline1'      => 'Der aktuelle Strommix',
       'site.tagline2'      => 'im deutschen Stromnetz',
+      'site.lag'           => 'Die grenzüberschreitenden Lastflüsse werden erst mit einigen Stunden Verzug veröffentlicht, deshalb zeigt die Seite den letzten Zeitpunkt, für den alle Daten vollständig vorliegen.',
       'site.credit'        => 'Ein Fork von <a href="https://grid.iamkate.com/">National Grid: Live</a> von <a href="https://iamkate.com/">Kate Morley</a>',
       'site.switchLabel'   => 'English',
       'site.switchPath'    => '/en/',
@@ -39,7 +40,7 @@ class I18n {
       'kind.renewables'      => 'Erneuerbare',
       'kind.others'          => 'Sonstige Quellen',
       'kind.transfers'       => 'Austausch',
-      'kind.interconnectors' => 'Außenhandel',
+      'kind.interconnectors' => 'Stromflüsse',
       'kind.storage'         => 'Speicher',
 
       'source.lignite'       => 'Braunkohle',
@@ -92,6 +93,7 @@ class I18n {
       'site.description'   => "Shows the live status of Germany's electric power grid: the generation mix, price, and carbon intensity",
       'site.tagline1'      => 'The current electricity mix',
       'site.tagline2'      => "on Germany's power grid",
+      'site.lag'           => 'Cross-border flows are published a few hours after the fact, so the page shows the most recent time for which every figure is complete.',
       'site.credit'        => 'A fork of <a href="https://grid.iamkate.com/">National Grid: Live</a> by <a href="https://iamkate.com/">Kate Morley</a>',
       'site.switchLabel'   => 'Deutsch',
       'site.switchPath'    => '/',
@@ -119,7 +121,7 @@ class I18n {
       'kind.renewables'      => 'Renewables',
       'kind.others'          => 'Other sources',
       'kind.transfers'       => 'Transfers',
-      'kind.interconnectors' => 'Cross-border trade',
+      'kind.interconnectors' => 'Physical flows',
       'kind.storage'         => 'Storage',
 
       'source.lignite'       => 'Lignite',
