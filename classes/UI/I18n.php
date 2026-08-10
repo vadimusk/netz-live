@@ -30,6 +30,8 @@ class I18n {
       'status.time'      => 'Zeit',
       'status.price'      => 'Preis',
       'status.emissions' => 'Emissionen',
+      // %s ist der Datenrückstand in vollen Stunden
+      'status.age'       => 'vor %s Std.',
 
       'equation.demand'     => 'Bedarf',
       'equation.generation' => 'Erzeugung',
@@ -111,6 +113,8 @@ class I18n {
       'status.time'      => 'Time',
       'status.price'      => 'Price',
       'status.emissions' => 'Emissions',
+      // %s is how many whole hours behind the data is
+      'status.age'       => '%sh ago',
 
       'equation.demand'     => 'Demand',
       'equation.generation' => 'Generation',

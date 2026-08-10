@@ -38,10 +38,15 @@ class Visits {
       'Content-Type: application/json'
     ]);
 
+    // Daily totals, rather than the minute-level groups the upstream project
+    // reads: those are an Enterprise dataset, and a zone without it is
+    // refused access to the field outright. Daily groups are available on
+    // every plan. A few days are re-read each run because the most recent
+    // day is still accumulating.
     $zoneId    = getenv('CLOUDFLARE_ZONE_ID');
     $time      = $database->getLatestQuarterHourTimestamp();
-    $startTime = gmdate('Y-m-d\\TH:i:s\\Z', $time - 12 * 60 * 60);
-    $endTime   = gmdate('Y-m-d\\TH:i:s\\Z', $time);
+    $startDate = gmdate('Y-m-d', $time - 3 * 24 * 60 * 60);
+    $endDate   = gmdate('Y-m-d', $time + 24 * 60 * 60);
 
     curl_setopt($curl, CURLOPT_POST, 1);
     curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([
@@ -53,16 +58,16 @@ class Visits {
                 zoneTag: "{$zoneId}"
               }
             ) {
-              httpRequests1mGroups(
+              httpRequests1dGroups(
                 filter: {
-                  datetime_geq: "{$startTime}",
-                  datetime_lt: "{$endTime}"
+                  date_geq: "{$startDate}",
+                  date_lt: "{$endDate}"
                 },
-                orderBy: [datetimeHalfOfHour_ASC],
+                orderBy: [date_ASC],
                 limit: 100
               ) {
                 dimensions {
-                  datetimeHalfOfHour
+                  date
                 }
                 sum {
                   pageViews
@@ -85,8 +90,8 @@ class Visits {
     $jsonData = json_decode($rawData, true);
 
     if (
-      !isset($jsonData['data']['viewer']['zones'][0]['httpRequests1mGroups'])
-      || !is_array($jsonData['data']['viewer']['zones'][0]['httpRequests1mGroups'])
+      !isset($jsonData['data']['viewer']['zones'][0]['httpRequests1dGroups'])
+      || !is_array($jsonData['data']['viewer']['zones'][0]['httpRequests1dGroups'])
     ) {
       throw new DataException('Missing data');
     }
@@ -94,7 +99,7 @@ class Visits {
     $data = [];
 
     foreach (
-      $jsonData['data']['viewer']['zones'][0]['httpRequests1mGroups'] as $item
+      $jsonData['data']['viewer']['zones'][0]['httpRequests1dGroups'] as $item
     ) {
       if (!is_array($item)) {
         throw new DataException('Invalid item');
@@ -114,7 +119,7 @@ class Visits {
    * @throws DataException If the data was invalid
    */
   private static function getDatum(array $item): array {
-    if (!isset($item['dimensions']['datetimeHalfOfHour'])) {
+    if (!isset($item['dimensions']['date'])) {
       throw new DataException('Missing time');
     }
 
@@ -126,8 +131,10 @@ class Visits {
       throw new DataException('Invalid visits: ' . $item['sum']['pageViews']);
     }
 
+    // the day's total is recorded against its first quarter hour, so that
+    // summing the column over a day, week or month gives the right figure
     return [
-      Time::normalise($item['dimensions']['datetimeHalfOfHour'], 15),
+      Time::normalise($item['dimensions']['date'] . ' 00:00', 15),
       $item['sum']['pageViews']
     ];
   }

@@ -422,6 +422,13 @@ dl {
     abbr {
       opacity: var(--unit-opacity);
     }
+
+    /* how far behind the data is, set apart from the time itself */
+    .age {
+      margin-left: 0.4em;
+      font-size: 0.6em;
+      white-space: nowrap;
+    }
   }
 
   dt:nth-child(1), dd:nth-child(2) { grid-column: 1; }
