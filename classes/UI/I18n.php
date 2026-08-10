@@ -10,6 +10,7 @@ class I18n {
       'site.description'   => 'Zeigt den Live-Status des deutschen Stromnetzes: Erzeugungsmix, Preis und CO₂-Intensität',
       'site.tagline1'      => 'Der aktuelle Strommix',
       'site.tagline2'      => 'im deutschen Stromnetz',
+      'site.lag'           => 'Erzeugung, Preis und Emissionen sind aktuell. Die grenzüberschreitenden Lastflüsse werden erst mit einigen Stunden Verzug veröffentlicht — bis dahin gilt der zuletzt gemessene Wert.',
       'site.credit'        => 'Ein Fork von <a href="https://grid.iamkate.com/">National Grid: Live</a> von <a href="https://iamkate.com/">Kate Morley</a>',
       'site.switchLabel'   => 'English',
       'site.switchPath'    => '/en/',
@@ -22,7 +23,9 @@ class I18n {
       'period.year'      => 'Vergangenes Jahr',
       'period.year.html' => '<span>Vergangenes </span>Jahr',
       'period.all'      => 'Gesamter Zeitraum',
-      'period.all.html' => 'Gesamter<span> Zeitraum</span>',
+      // narrow screens hide the span, so the split leaves "Gesamt" standing
+      // on its own rather than the bare adjective ending "Gesamter"
+      'period.all.html' => 'Gesamt<span>er Zeitraum</span>',
 
       'status.time'      => 'Zeit',
       'status.price'      => 'Preis',
@@ -37,7 +40,7 @@ class I18n {
       'kind.renewables'      => 'Erneuerbare',
       'kind.others'          => 'Sonstige Quellen',
       'kind.transfers'       => 'Austausch',
-      'kind.interconnectors' => 'Grenzkuppelstellen',
+      'kind.interconnectors' => 'Stromflüsse',
       'kind.storage'         => 'Speicher',
 
       'source.lignite'       => 'Braunkohle',
@@ -90,6 +93,7 @@ class I18n {
       'site.description'   => "Shows the live status of Germany's electric power grid: the generation mix, price, and carbon intensity",
       'site.tagline1'      => 'The current electricity mix',
       'site.tagline2'      => "on Germany's power grid",
+      'site.lag'           => 'Generation, price and emissions are current. Cross-border flows are published a few hours after the fact, so until they arrive the last measured value is carried forward.',
       'site.credit'        => 'A fork of <a href="https://grid.iamkate.com/">National Grid: Live</a> by <a href="https://iamkate.com/">Kate Morley</a>',
       'site.switchLabel'   => 'Deutsch',
       'site.switchPath'    => '/',
@@ -117,7 +121,7 @@ class I18n {
       'kind.renewables'      => 'Renewables',
       'kind.others'          => 'Other sources',
       'kind.transfers'       => 'Transfers',
-      'kind.interconnectors' => 'Interconnections',
+      'kind.interconnectors' => 'Physical flows',
       'kind.storage'         => 'Storage',
 
       'source.lignite'       => 'Lignite',

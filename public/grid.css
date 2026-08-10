@@ -27,6 +27,9 @@
   }
 }
 
+.high            { color: #c45; }
+.medium          { color: #e90; }
+.low             { color: #5b5; }
 .generation      { color: #aaa; }
 .price           { color: #000; }
 .emissions       { color: #000; }
@@ -120,6 +123,14 @@ header {
 
   span {
     white-space: nowrap;
+  }
+
+  .lag {
+    max-width: 46rem;
+    margin-inline: auto;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    opacity: 0.55;
   }
 
   a:last-child {
@@ -399,7 +410,13 @@ dl {
     grid-row: 2;
     font-size: 1.2em;
 
+    &:where(.low, .medium, .high) {
+      font-weight: 400;
+    }
+
     abbr {
+      color: var(--content-text);
+      font-weight: 300;
       opacity: var(--unit-opacity);
     }
   }
@@ -443,6 +460,15 @@ dl {
   [role="tabpanel"] & {
     dd {
       font-size: 18px;
+    }
+
+    /* The first value here is the period description, which in German runs
+       to a good deal more than the English it replaces ("Vergangene Woche"
+       against "Past week"). Left unwrapped it sets a minimum width wider
+       than a third of a phone screen, pushing the emissions column off the
+       right-hand edge, so this one value is allowed to wrap. */
+    dd:nth-child(2) {
+      white-space: normal;
     }
   }
 }
@@ -834,6 +860,13 @@ dl {
     }
   }
 
+  /* the level bands sit behind the masked line, so they are painted rather
+     than left transparent, and mustn't swallow the hover on the background */
+  g[mask] rect {
+    fill: currentColor;
+    pointer-events: none;
+  }
+
   svg + div {
     position: absolute;
     top: calc(var(--graph-height) / 2 + 0.5em);
@@ -861,6 +894,16 @@ dl {
 
     tr {
       gap: 7px;
+
+      /* a graph with a single series has nothing to distinguish, so the key
+         drops the colour swatch and shows just the label and the value */
+      &:only-child {
+        grid-template-columns: 1fr max-content;
+
+        :nth-child(1) {
+          display: none;
+        }
+      }
     }
 
     td:nth-child(1)::after {
@@ -929,6 +972,31 @@ dialog {
 
   p + p {
     margin-top: 1rem;
+  }
+
+  /* the emissions legend: each level is a swatch in its own colour */
+  ul {
+    margin-block: 0.5rem 0;
+    padding-left: 0;
+
+    li {
+      list-style-type: none;
+      padding-top: 0.5rem;
+
+      &::before {
+        content: '';
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        margin-right: 0.5rem;
+        vertical-align: center;
+        background: currentColor;
+      }
+
+      span {
+        color: var(--content-text);
+      }
+    }
   }
 
   button {

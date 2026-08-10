@@ -54,6 +54,26 @@ enum Graph: int {
   }
 
   /**
+   * Returns the levels for colouring lines, as an array mapping classes to
+   * minimum values.
+   *
+   * @return ?array<string,int>
+   */
+  public function levels(): ?array {
+    if ($this !== self::Emissions) {
+      return null;
+    }
+
+    $levels = [];
+
+    foreach (Emissions::cases() as $level) {
+      $levels[$level->class()] = $level->minimum();
+    }
+
+    return $levels;
+  }
+
+  /**
    * Returns the classes for the lines.
    *
    * @return array<string>

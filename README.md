@@ -2,7 +2,7 @@
 
 This repository is a German fork of [National Grid: Live](https://grid.iamkate.com/) ([KateMorley/grid](https://github.com/KateMorley/grid)), a project by [Kate Morley](https://iamkate.com/). Same architecture and visual design, adapted to show the live status of **Germany's** electric power grid instead of Great Britain's: generation mix, price, and carbon intensity, updated every fifteen minutes. The site is bilingual, with German at `/` and English at `/en/`.
 
-This fork is not currently deployed anywhere — it's code only. See "Production" below for what's needed to run it live.
+Live at [netz.vterskov.de](https://netz.vterskov.de/), rebuilt from the API every five minutes.
 
 ## Development
 
@@ -48,11 +48,17 @@ Create a database and a user with `SELECT`, `INSERT`, `UPDATE`, and `DELETE` pri
 
 Configure the server to serve the contents of the `public` directory, with directory-index resolution enabled so that `/en/` serves `public/en/index.html`. This directory contains only static files, so the web server does not need to support PHP.
 
+The live deployment runs nginx from [nginx.org's own repository](https://nginx.org/en/linux_packages.html#Ubuntu), with its configuration in `/etc/nginx/conf.d/netz-live.conf`. Two details there are worth keeping if you rewrite it: cache lifetimes are chosen with a `map` rather than an `add_header` inside each `location`, because an `add_header` in a location replaces the ones set on the server and would silently drop the security headers from those responses; and the HTML is served `no-cache`, since the update script rewrites it every five minutes and the page polls for a newer copy.
+
 ### Cron
 
 Set up a cron job to execute the `update.php` script (using the [PHP CLI SAPI](https://www.php.net/manual/en/features.commandline.usage.php)) every five minutes. The cron job must run as a user with write access to `public/favicon.svg`, `public/index.html`, and `public/en/index.html`.
 
 The script outputs details of the update process to standard output, and details of errors to standard error. An error with an individual data source does not abort the rest of the update process.
+
+### Fonts
+
+The site is set in a system font stack (`-apple-system`, `Segoe UI`, `Roboto`, `Helvetica Neue`, `Arial`) rather than the commercial Proza the upstream project uses. Proza Libre, the free version of Proza, and Source Sans 3 were both tried in turn — the former reads heavier than upstream since it starts at weight 400 where upstream's body text is 300, and the latter draws a visibly different question mark glyph on the help icons, which is subtle enough to be hard to place but stood out once several were on screen together. The system stack sidesteps both: no face to license, no glyph shapes to compare against Proza's, and it renders in whatever the visitor's own OS already uses for its interface.
 
 ### Cloudflare
 
@@ -60,7 +66,9 @@ Visit counts will be retrieved from Cloudflare if the `CLOUDFLARE_API_TOKEN` and
 
 ### Domain and banner
 
-`classes/UI/UI.php` currently points canonical/`hreflang` URLs at a placeholder `netz-live.example` domain — update these once the site has a real home. The original repository's `public/banner.png` (an Open Graph preview image reading "National Grid: Live") was removed rather than left with the wrong branding; a replacement for this fork is a nice-to-have follow-up, as is a favicon refresh.
+The canonical and `hreflang` URLs come from the `BASE_URL` constant at the top of [UI](classes/UI/UI.php); change it there if the site moves.
+
+The original repository's `public/banner.png` (an Open Graph preview image reading "National Grid: Live") was replaced with `banner-de.png` and `banner-en.png`, drawn in the site's own palette, along with a matching `favicon.png` and `apple-touch-icon.png`.
 
 ## Codebase structure
 
@@ -82,6 +90,10 @@ This API, run by the [Fraunhofer Institute for Solar Energy Systems ISE](https:/
 
 - `/public_power` — generation by source (lignite, hard coal, gas, oil, biomass, waste, geothermal, solar, wind onshore/offshore, hydro run-of-river/reservoir/pumped storage, others)
 - `/cbpf` — physical cross-border flows with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland)
+
+  Flows are used in preference to the scheduled commercial exchanges from `/cbet`. Germany sits inside the Continental European synchronous grid, where power reaches a buyer along whichever lines carry it, so a sale to one neighbour can flow through another: measured over a day the two series agree on the country's overall balance to within a few hundred megawatts, but disagree per neighbour by a gigawatt or more, at times even in direction. Flows are what actually happened.
+
+  The cost is that they are published a couple of hours after the fact, and the endpoint doesn't report the gap as missing data — the trailing quarter hours come back with every neighbour at exactly zero. `Generation::withReportedTransfers()` discards those, and only quarter hours carried by both the generation and the flow data are written, so the site runs as far behind as the flows do. The header says so, and the help behind the time and the transfers explains why.
 - `/co2eq` — estimated carbon intensity of German electricity generation
 - `/price` — day-ahead auction price for the DE-LU bidding zone (this specific dataset is licensed CC BY 4.0 from the Bundesnetzagentur/SMARD.de; see the `license_info` field returned by the API)
 

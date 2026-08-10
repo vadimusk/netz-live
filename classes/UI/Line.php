@@ -53,6 +53,16 @@ class Line {
       echo '"';
     }
 
+    // a series can cover no data at all — until a new database has collected
+    // a couple of days, the past week and past year hold no rows — in which
+    // case the path is left without a definition rather than given an empty
+    // one, which browsers reject. The element itself stays, because the key
+    // shown on hovering a graph pairs paths with values by position.
+    if (count($this->offsets) === 0) {
+      echo '/>';
+      return;
+    }
+
     echo ' d="m0 ';
     echo array_shift($this->offsets);
 

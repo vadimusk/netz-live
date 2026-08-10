@@ -6,6 +6,12 @@ use KateMorley\Grid\State\State;
 
 /** Functions for outputting the user interface. */
 class UI {
+  /**
+   * The site's base URL, used for the canonical and alternate language
+   * links. Change this if the site moves to a different subdomain.
+   */
+  private const BASE_URL = 'https://netz.vterskov.de/';
+
   /** The state. */
   private State $state;
 
@@ -33,7 +39,11 @@ class UI {
     $javascriptModified = filemtime(__DIR__ . '/../../public/grid.js');
 
     $locale       = $this->locale;
-    $canonicalUrl = 'https://netz-live.example/' . ($locale === 'en' ? 'en/' : '');
+    $canonicalUrl = self::BASE_URL . ($locale === 'en' ? 'en/' : '');
+
+    // the English page lives a directory down, so its shared assets, which
+    // are all at the site root, are one level up
+    $root = ($locale === 'en' ? '../' : '');
 
 ?>
 <!DOCTYPE html>
@@ -47,14 +57,20 @@ class UI {
     <meta property="og:url" content="<?= $canonicalUrl ?>">
     <meta property="og:type" content="website">
     <meta property="og:title" content="<?= I18n::t('site.title', $locale) ?>">
+    <meta property="og:description" content="<?= I18n::t('site.description', $locale) ?>">
     <meta property="og:locale" content="<?= $locale === 'de' ? 'de_DE' : 'en_GB' ?>">
+    <meta property="og:image" content="<?= self::BASE_URL ?>banner-<?= $locale ?>.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="canonical" href="<?= $canonicalUrl ?>">
-    <link rel="alternate" hreflang="de" href="https://netz-live.example/">
-    <link rel="alternate" hreflang="en" href="https://netz-live.example/en/">
-    <link rel="stylesheet" href="<?= $locale === 'de' ? '' : '../' ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
-    <link rel="icon" href="<?= $locale === 'de' ? '' : '../' ?>favicon.png" type="image/png">
-    <link rel="icon" href="<?= $locale === 'de' ? '' : '../' ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
-    <script src="<?= $locale === 'de' ? '' : '../' ?>grid.js?<?= $javascriptModified ?>" defer></script>
+    <link rel="alternate" hreflang="de" href="<?= self::BASE_URL ?>">
+    <link rel="alternate" hreflang="en" href="<?= self::BASE_URL ?>en/">
+    <link rel="stylesheet" href="<?= $root ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
+    <link rel="icon" href="<?= $root ?>favicon.png" type="image/png">
+    <link rel="icon" href="<?= $root ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<?= $root ?>apple-touch-icon.png">
+    <script src="<?= $root ?>grid.js?<?= $javascriptModified ?>" defer></script>
   </head>
   <body>
     <header>
@@ -66,6 +82,9 @@ class UI {
       </h1>
       <p>
         <span><?= I18n::t('site.tagline1', $locale) ?></span> <span><?= I18n::t('site.tagline2', $locale) ?></span>
+      </p>
+      <p class="lag">
+        <?= I18n::t('site.lag', $locale) ?>
       </p>
     </header>
     <main>

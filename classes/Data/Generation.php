@@ -64,6 +64,41 @@ class Generation {
     'Hydro pumped storage consumption' => 'pumped_consumption'
   ];
 
+  // the two groups are written separately, because the flows are published
+  // a couple of hours behind the generation and shouldn't hold it back
+  private const GENERATION_COLUMNS = [
+    'lignite',
+    'hard_coal',
+    'gas',
+    'coal_gas',
+    'oil',
+    'biomass',
+    'waste',
+    'geothermal',
+    'other',
+    'solar',
+    'wind_onshore',
+    'wind_offshore',
+    'hydro_run_of_river',
+    'hydro_reservoir',
+    'pumped_generation',
+    'pumped_consumption'
+  ];
+
+  private const TRANSFER_COLUMNS = [
+    'austria',
+    'belgium',
+    'czech_republic',
+    'denmark',
+    'france',
+    'luxembourg',
+    'netherlands',
+    'norway',
+    'poland',
+    'sweden',
+    'switzerland'
+  ];
+
   // maps the "name" field of each /cbpf country to a column; positive values
   // are imports into Germany, negative values are exports
   private const TRANSFER_SERIES = [
@@ -100,6 +135,14 @@ class Generation {
       $data
     );
 
+    // Physical flows are used rather than the scheduled commercial exchanges
+    // from /cbet. Germany sits inside the Continental European synchronous
+    // grid, where power reaches a buyer along whichever lines carry it, so a
+    // sale to one neighbour can flow through another: over a day the two
+    // series agree on the country's overall balance to within a few hundred
+    // megawatts, but disagree per neighbour by a gigawatt or more, at times
+    // even in direction. Flows are what actually happened, at the cost of
+    // being published a couple of hours later.
     $transferTimes = self::ingest(
       'https://api.energy-charts.info/cbpf?country=de&start=%s&end=%s',
       'countries',
@@ -109,16 +152,88 @@ class Generation {
       $data
     );
 
-    // cross-border flow data is typically published a couple of hours later
-    // than domestic generation data, so only commit quarter hours where both
-    // are available; otherwise the most recent rows would show generation
-    // alongside misleadingly-zero interconnector figures, only to be filled
-    // in retroactively once the flow data catches up
-    $completeTimes = array_intersect($generationTimes, $transferTimes);
-
-    $database->updateGeneration(array_intersect_key(
+    // The two series are written separately so that the slower one doesn't
+    // hold the faster one back. Generation is committed as far as it goes,
+    // and flows only for the quarter hours they actually cover — the lag
+    // isn't reported as missing data, the trailing quarter hours simply come
+    // back with every neighbour at exactly zero, and writing those in would
+    // read as an hour of no trade at all.
+    $reportedTimes = self::withReportedTransfers(
+      $transferTimes,
       $data,
-      array_flip($completeTimes)
+      $columns
+    );
+
+    $database->updateGeneration(
+      self::rows($data, $generationTimes, self::GENERATION_COLUMNS, $columns),
+      self::GENERATION_COLUMNS,
+      self::rows($data, $reportedTimes, self::TRANSFER_COLUMNS, $columns),
+      self::TRANSFER_COLUMNS,
+      count($reportedTimes) === 0 ? null : max($reportedTimes)
+    );
+  }
+
+  /**
+   * Builds insertable rows for a subset of times and columns.
+   *
+   * @param array             $data          The data collected so far
+   * @param array<string>     $times         The times to include
+   * @param array<string>     $columns       The columns to include
+   * @param array<string,int> $columnIndexes A map from column to row index
+   */
+  private static function rows(
+    array $data,
+    array $times,
+    array $columns,
+    array $columnIndexes
+  ): array {
+    return array_map(
+      fn ($time) => array_merge(
+        [$time],
+        array_map(
+          fn ($column) => $data[$time][$columnIndexes[$column] + 1],
+          $columns
+        )
+      ),
+      $times
+    );
+  }
+
+  /**
+   * Filters out quarter hours whose flows haven't been reported yet.
+   *
+   * The endpoint doesn't mark them as missing: it returns the quarter hour
+   * with every neighbour at exactly zero. Germany borders eleven grids, and
+   * all eleven sitting at precisely zero is not something that happens, so
+   * a row like that is taken to mean the figures haven't arrived.
+   *
+   * @param array<string>     $times         The times to filter
+   * @param array             $data          The data collected so far
+   * @param array<string,int> $columnIndexes A map from column to row index
+   *
+   * @return array<string> The times whose flows have been reported
+   */
+  private static function withReportedTransfers(
+    array $times,
+    array $data,
+    array $columnIndexes
+  ): array {
+    $rows = array_map(
+      fn ($column) => $columnIndexes[$column] + 1,
+      array_values(self::TRANSFER_SERIES)
+    );
+
+    return array_values(array_filter(
+      $times,
+      function ($time) use ($data, $rows) {
+        foreach ($rows as $row) {
+          if ($data[$time][$row] != 0) {
+            return true;
+          }
+        }
+
+        return false;
+      }
     ));
   }
 

@@ -27,9 +27,9 @@ class Favicon {
     );
 
     $total      = Kind::Generation->get($sources);
-    $fossils    = Kind::Fossils->get($sources) / $total;
-    $renewables = Kind::Renewables->get($sources) / $total;
-    $others     = Kind::Others->get($sources) / $total;
+    $fossils    = Value::share(Kind::Fossils->get($sources), $total);
+    $renewables = Value::share(Kind::Renewables->get($sources), $total);
+    $others     = Value::share(Kind::Others->get($sources), $total);
 
     $svg .= self::createArc(
       self::FOSSILS_COLOUR,

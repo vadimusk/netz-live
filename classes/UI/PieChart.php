@@ -22,7 +22,7 @@ class PieChart {
     $demand     = $generation + Kind::Transfers->get($sources);
 
     $generationPower      = Value::formatTotalPower($generation, $locale);
-    $generationPercentage = Value::formatPercentage($generation / $demand, $locale);
+    $generationPercentage = Value::formatShare($generation, $demand, $locale);
 
     echo '<div class="pie-chart"><div><div>';
     echo I18n::t('kind.generation', $locale);
@@ -77,12 +77,12 @@ class PieChart {
       $power = $kindOrSource->get($sources);
 
       if ($power > 0) {
-        $fraction = $power / Kind::Generation->get($sources);
+        $fraction = Value::share($power, Kind::Generation->get($sources));
 
         self::outputArc(
           $kindOrSource->value,
           Value::formatPower($power, $locale),
-          Value::formatPercentage($power / $sources->sum(), $locale),
+          Value::formatShare($power, $sources->sum(), $locale),
           $fraction,
           $offset,
           $innerRadius,
