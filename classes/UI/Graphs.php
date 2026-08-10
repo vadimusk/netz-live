@@ -115,6 +115,14 @@ class Graphs {
     $this->minimums[$graph->value] = $step * floor($minimum / $step);
     $this->maximums[$graph->value] = $step * ceil($maximum  / $step);
     $this->steps[$graph->value]    = $step;
+
+    // A series that never leaves zero gives the axis no range at all, and
+    // plotting a point on it would divide by that range. The visits stay at
+    // zero unless Cloudflare analytics are configured, so the graph is left
+    // with a single step of headroom to draw a flat line along the bottom.
+    if ($this->maximums[$graph->value] == $this->minimums[$graph->value]) {
+      $this->maximums[$graph->value] += $step;
+    }
   }
 
   /**
