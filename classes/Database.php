@@ -235,6 +235,55 @@ class Database {
   }
 
   /**
+   * Calculates emissions from the generation mix for the quarter hours the
+   * official figures don't reach yet.
+   *
+   * The official carbon intensity arrives around three hours after the fact,
+   * where the generation it describes is barely an hour old. Rather than show
+   * a stale figure beside a current mix, the remaining quarter hours are
+   * filled in from the mix itself, and overwritten with the official figure
+   * as soon as it arrives.
+   *
+   * @param array<string,int> $factors     A map from column to emission factor
+   * @param array<string>     $denominator The columns the intensity is
+   *                                        measured against
+   * @param float             $offset      A constant added to the total
+   * @param ?string           $after       The latest quarter hour the official
+   *                                        figures cover, quoted for SQL, or
+   *                                        null if they cover none
+   */
+  public function updateComputedEmissions(
+    array   $factors,
+    array   $denominator,
+    float   $offset,
+    ?string $after
+  ): void {
+    $total = implode('+', $denominator);
+
+    $emissions = implode('+', array_map(
+      fn ($column, $factor) => $factor . '*' . $column,
+      array_keys($factors),
+      $factors
+    ));
+
+    $this->connection->query(
+      'UPDATE past_quarter_hours SET emissions=ROUND(('
+      . $emissions
+      . '+'
+      . $offset
+      . ')/('
+      . $total
+      . ')) WHERE ('
+      . $total
+      . ')>0'
+      // quarter hours the official figures already cover are left alone, but
+      // any they skipped are filled in: a new database starts with a few of
+      // them, since the generation reaches back slightly further
+      . ($after === null ? '' : ' AND (time>' . $after . ' OR emissions=0)')
+    );
+  }
+
+  /**
    * Updates data, ignoring data prior to the earliest quarter hour or past
    * the latest quarter hour.
    *

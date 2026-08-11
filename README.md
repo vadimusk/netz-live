@@ -84,25 +84,40 @@ Unlike the original, which ingests data at mismatched 5-minute and 30-minute res
 
 ## Data sources
 
+### [SMARD](https://www.smard.de/)
+
+The electricity market data platform of the [Bundesnetzagentur](https://www.bundesnetzagentur.de/), the German federal network regulator. It publishes at 15-minute resolution, and its own documentation puts its target at one hour after the fact.
+
+This fork originally read the same figures from the Energy-Charts API, which republishes them but does so around three hours later. Switching to the first-hand source cut the site's lag from over three and a half hours to around forty minutes; the values themselves are identical, having been checked series by series against Energy-Charts over a fortnight and agreeing to the last stored decimal.
+
+Each series lives in its own file, one per calendar week, at `chart_data/{id}/DE/{id}_DE_quarterhour_{monday}.json`, where `{monday}` is the millisecond timestamp of midnight German local time on the Monday starting the week. Requests need a browser user agent, and the files carry an `ETag` that conditional requests ignore, so caching gains nothing; the [Smard](classes/Data/Smard.php) class instead fetches the thirty-odd files it needs in parallel, which takes a second or two.
+
+Values are reported as megawatt hours produced within the quarter hour, so multiplying by four gives megawatts.
+
+- **Generation** — lignite, hard coal, gas, biomass, solar, wind onshore/offshore, hydro, pumped storage, and the remainders SMARD groups as other renewable and other conventional. Pumped storage consumption is reported under consumption rather than generation, as a positive figure, and is stored negated.
+- **Physical cross-border flows** with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland), each as a separate export and import series. Exports are positive and imports negative, both from Germany's point of view, so negating their sum gives the net import.
+
+  Flows are used in preference to the scheduled commercial exchanges. Germany sits inside the Continental European synchronous grid, where power reaches a buyer along whichever lines carry it, so a sale to one neighbour can flow through another: measured over a day the two series agree on the country's overall balance to within a few hundred megawatts, but disagree per neighbour by a gigawatt or more, at times even in direction. Flows are what actually happened.
+
+  They still trail the generation slightly, so they are written separately and the last known figures are carried forward over the quarter hours they don't reach, rather than holding the generation back.
+- **Day-ahead auction price** for the DE-LU bidding zone, licensed CC BY 4.0. Settled the day before, so it runs ahead of the generation rather than behind it.
+
 ### [Energy-Charts](https://www.energy-charts.info/)
 
-This API, run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/), publishes German electricity data sourced from ENTSO-E and the Bundesnetzagentur/SMARD.de, at 15-minute resolution.
+Run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/). Only one figure is still read from here, because SMARD doesn't publish it:
 
-- `/public_power` — generation by source (lignite, hard coal, gas, oil, biomass, waste, geothermal, solar, wind onshore/offshore, hydro run-of-river/reservoir/pumped storage, others)
-- `/cbpf` — physical cross-border flows with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland)
+- `/co2eq` — carbon intensity of German electricity generation
 
-  Flows are used in preference to the scheduled commercial exchanges from `/cbet`. Germany sits inside the Continental European synchronous grid, where power reaches a buyer along whichever lines carry it, so a sale to one neighbour can flow through another: measured over a day the two series agree on the country's overall balance to within a few hundred megawatts, but disagree per neighbour by a gigawatt or more, at times even in direction. Flows are what actually happened.
+It arrives around three hours after the fact, where the generation it describes is barely an hour old. Rather than show a stale figure beside a current mix, [Emissions](classes/Data/Emissions.php) fills the remaining quarter hours in from the generation mix itself, and the official figure overwrites the calculation as soon as it arrives.
 
-  The cost is that they are published a couple of hours after the fact, and the endpoint doesn't report the gap as missing data — the trailing quarter hours come back with every neighbour at exactly zero. `Generation::withReportedTransfers()` discards those, and only quarter hours carried by both the generation and the flow data are written, so the site runs as far behind as the flows do. The header says so, and the help behind the time and the transfers explains why.
-- `/co2eq` — estimated carbon intensity of German electricity generation
-- `/price` — day-ahead auction price for the DE-LU bidding zone (this specific dataset is licensed CC BY 4.0 from the Bundesnetzagentur/SMARD.de; see the `license_info` field returned by the API)
+The emission factors were calibrated by fitting the official series against SMARD's mix over a fortnight, holding the renewables at zero and keeping each factor within the range its technology can plausibly take. The fitted values turn out to be direct combustion emissions rather than lifecycle ones, which is what the official series tracks: lignite at 1074 g/kWh and hard coal at 720 g/kWh sit where the literature puts them. Checked against 105 hours the fit had not seen, the calculation reproduces the official figure to a mean error of 7 g/kWh, with 99% of quarter hours within 20 g/kWh, against values ranging from 111 to 718.
 
-PHP classes: [Generation](classes/Data/Generation.php), [Emissions](classes/Data/Emissions.php), [Pricing](classes/Data/Pricing.php)
+PHP classes: [Smard](classes/Data/Smard.php), [Generation](classes/Data/Generation.php), [Emissions](classes/Data/Emissions.php), [Pricing](classes/Data/Pricing.php)
 
-Unlike the UK original, Germany doesn't need a separate "embedded generation" data source: `/public_power` already reports full national generation including distributed solar and wind, so there's no `Demand.php` equivalent.
+Unlike the UK original, Germany doesn't need a separate "embedded generation" data source: the generation figures already cover the whole country including distributed solar and wind, so there's no `Demand.php` equivalent.
 
 ## Future plans
 
-Nuclear power isn't shown, since Germany's last three reactors shut down on 15th April 2023 and the data source no longer reports it. Battery storage isn't shown, for the same double-counting reason described in the original project (and because Energy-Charts doesn't report a distinct battery series for Germany).
+Nuclear power isn't shown, since Germany's last three reactors shut down on 15th April 2023 and the series has reported nothing since. Battery storage isn't shown, for the same double-counting reason described in the original project (and because neither source reports a distinct battery series for Germany).
 
 Following the original project's philosophy: the aim is a limited scope and a concise interface for the general public, not specialised analysis for energy industry experts.
