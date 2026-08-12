@@ -66,6 +66,21 @@ foreach ([
       Favicon::create($state->latest->sources),
       LOCK_EX
     );
+
+    // the sitemap carries the time of the newest data as its last-modified
+    // date, so a crawler can tell the pages are still being updated
+    $modified = gmdate('c', $state->time);
+
+    file_put_contents(
+      __DIR__ . '/public/sitemap.xml',
+      '<?xml version="1.0" encoding="UTF-8"?>'
+      . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+      . ' xmlns:xhtml="http://www.w3.org/1999/xhtml">'
+      . UI::sitemapEntry('', $modified)
+      . UI::sitemapEntry('en/', $modified)
+      . '</urlset>',
+      LOCK_EX
+    );
   }
 ] as $action => $callback) {
   echo $action;
