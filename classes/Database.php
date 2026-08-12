@@ -49,7 +49,8 @@ class Database {
       $this->getSeries('past_years'),
       $this->getWindRecord(),
       $this->getWindMilestones(),
-      $this->getYearlyVisits()
+      $this->getYearlyVisits(),
+      $this->getVisitsCoverYear()
     );
   }
 
@@ -164,6 +165,22 @@ class Database {
       . date('Y-m-d')
       . '"'
     )->fetch_row()[0];
+  }
+
+  /**
+   * Returns whether visits have been counted for a full year.
+   *
+   * A new site has counted them for days rather than a year, and saying its
+   * handful of visits arrived "over the past year" would read as a site nobody
+   * goes to rather than one that just went up.
+   */
+  private function getVisitsCoverYear(): bool {
+    $earliest = $this->connection->query(
+      'SELECT MIN(time) FROM past_days WHERE visits>0'
+    )->fetch_row()[0];
+
+    return $earliest !== null
+      && strtotime($earliest . ' UTC') <= time() - 365 * 24 * 60 * 60;
   }
 
   /**

@@ -78,6 +78,7 @@ class I18n {
       'about.heading' => 'Über dieses Projekt',
       'about.p1'      => 'Diese Seite ist ein Open-Source-Fork von <a href="https://grid.iamkate.com/">National Grid: Live</a>, einem Projekt von <a href="https://iamkate.com/">Kate Morley</a>. Wie das Original steht auch dieser Fork unter der <a href="https://creativecommons.org/publicdomain/zero/1.0/legalcode">Creative Commons CC0 1.0 Universal Legal Code</a> — der Quellcode ist gemeinfrei und <a href="https://github.com/vadimusk/netz-live">auf GitHub verfügbar</a>, ohne dass eine Namensnennung erforderlich ist.',
       'about.p2'      => 'Diese Seite hatte im vergangenen Jahr %s Besuche.',
+      'about.p2.short' => 'Diese Seite hatte seit ihrem Start %s Besuche.',
       'about.p3'      => 'Erzeugung und grenzüberschreitende Lastflüsse stammen von <a href="https://www.smard.de/">SMARD</a>, der Strommarktdatenplattform der Bundesnetzagentur, ebenso die Day-Ahead-Preise, die unter der Lizenz CC BY 4.0 freigegeben sind. Die CO₂-Intensität stammt von der <a href="https://www.energy-charts.info/">Energy-Charts-Plattform</a> des Fraunhofer-Instituts für Solare Energiesysteme ISE; sie erscheint mit einigen Stunden Verzug, weshalb sie für die jüngsten Viertelstunden aus dem Erzeugungsmix berechnet wird — mit einer mittleren Abweichung von etwa 7 g/kWh gegenüber dem später eintreffenden amtlichen Wert, der die Berechnung dann ersetzt.',
 
       'transition.heading' => 'Die Energiewende',
@@ -160,6 +161,7 @@ class I18n {
       'about.heading' => 'About this site',
       'about.p1'      => 'This site is an open source fork of <a href="https://grid.iamkate.com/">National Grid: Live</a>, a project by <a href="https://iamkate.com/">Kate Morley</a>. Like the original, this fork is published under the terms of the <a href="https://creativecommons.org/publicdomain/zero/1.0/legalcode">Creative Commons CC0 1.0 Universal Legal Code</a> — the code is public domain and <a href="https://github.com/vadimusk/netz-live">available on GitHub</a>, and you can use and adapt it without attribution.',
       'about.p2'      => 'This site received %s visits over the past year.',
+      'about.p2.short' => 'This site has received %s visits since it launched.',
       'about.p3'      => 'Generation and cross-border flows come from <a href="https://www.smard.de/">SMARD</a>, the electricity market data platform of the Bundesnetzagentur, as do the day-ahead prices, which are released under a CC BY 4.0 licence. The carbon intensity comes from the <a href="https://www.energy-charts.info/">Energy-Charts platform</a> run by the Fraunhofer Institute for Solar Energy Systems ISE; it arrives a few hours late, so for the most recent quarter hours it is calculated from the generation mix instead — to within about 7 g/kWh of the official figure that later arrives and replaces it.',
 
       'transition.heading' => 'The energy transition',

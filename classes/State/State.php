@@ -20,6 +20,8 @@ class State {
    * @param Record        $windRecord     The wind power generation record
    * @param array<string> $windMilestones The wind power generation milestones
    * @param int           $visits         The number of visits in the past year
+   * @param bool           $visitsCoverYear Whether visits have been counted
+   *                                        for a full year
    */
   public function __construct(
     public readonly int    $time,
@@ -34,7 +36,8 @@ class State {
     public readonly array  $allSeries,
     public readonly Record $windRecord,
     public readonly array  $windMilestones,
-    public readonly int    $visits
+    public readonly int    $visits,
+    public readonly bool   $visitsCoverYear
   ) {
   }
 }
