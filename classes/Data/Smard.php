@@ -53,14 +53,18 @@ class Smard {
     int   $from,
     float $divisor = self::DIVISOR
   ): array {
-    $series = self::readWeeks($ids, self::weeks($from), $divisor);
+    $series = [];
 
-    foreach ($series as $id => $values) {
-      $series[$id] = array_filter(
-        $values,
-        fn ($time) => $time >= $from,
-        ARRAY_FILTER_USE_KEY
-      );
+    foreach (self::readWeeks($ids, self::weeks($from), $divisor) as $id => $values) {
+      $series[$id] = [];
+
+      foreach ($values as $time => $value) {
+        if ($time >= $from) {
+          // keyed by normalised time, ready for the database, where the
+          // historic import works in Unix timestamps and normalises its own
+          $series[$id][Time::normaliseUnix($time, 15)] = $value;
+        }
+      }
 
       if (count($series[$id]) === 0) {
         throw new DataException('No data for series ' . $id);
