@@ -87,7 +87,8 @@ class I18n {
       'transition.p3'      => 'Gleichzeitig ist der Anteil erneuerbarer Energien kontinuierlich gestiegen: Windkraft- und Solaranlagen decken inzwischen an vielen Tagen über die Hälfte des deutschen Strombedarfs, mit neuen Rekorden bei besonders sonnigen oder windreichen Wetterlagen.',
       'transition.p4'      => 'Zwischen %s und %s am %s erreichte die deutsche Windkraft (Onshore und Offshore zusammen) mit durchschnittlich %sGW einen neuen Rekord.',
       'transition.power'   => 'Leistung',
-      'transition.date'    => 'Datum des ersten Erreichens'
+      'transition.date'    => 'Datum des ersten Erreichens',
+      'transition.since'   => 'Grundlage sind die Viertelstundenwerte von SMARD, die bis zum %s zurückreichen. Niedrigere Leistungsstufen sind nicht aufgeführt, da sie bereits vor Beginn der Datenreihe erreicht worden sein dürften.'
     ],
 
     'en' => [
@@ -170,7 +171,8 @@ class I18n {
       'transition.p3'      => "At the same time, the share of renewable generation has risen steadily: wind and solar power now cover more than half of Germany's electricity demand on many days, with new records set during especially sunny or windy weather.",
       'transition.p4'      => 'Between %s and %s on %s, German wind power (onshore and offshore combined) averaged a record %sGW of generation.',
       'transition.power'   => 'Power',
-      'transition.date'    => 'Date first achieved'
+      'transition.date'    => 'Date first achieved',
+      'transition.since'   => 'Based on quarter-hourly figures from SMARD, which reach back to %s. Lower levels aren\'t listed, since they were most likely reached before the data begins.'
     ]
   ];
 

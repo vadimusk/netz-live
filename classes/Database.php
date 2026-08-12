@@ -49,6 +49,7 @@ class Database {
       $this->getSeries('past_years'),
       $this->getWindRecord(),
       $this->getWindMilestones(),
+      $this->getRecordsStart(),
       $this->getYearlyVisits(),
       $this->getVisitsCoverYear()
     );
@@ -144,7 +145,9 @@ class Database {
     $milestones = [];
 
     $rows = $this->connection->query(
-      'SELECT * FROM wind_records ORDER BY value DESC'
+      'SELECT * FROM wind_records WHERE value>'
+      . $this->getWindWarmUpMaximum()
+      . ' ORDER BY value DESC'
     );
 
     while ($row = $rows->fetch_assoc()) {
@@ -152,6 +155,50 @@ class Database {
     }
 
     return $milestones;
+  }
+
+  /** Returns the time the data begins, as a Unix timestamp. */
+  private function getRecordsStart(): int {
+    $start = $this->connection->query(
+      'SELECT MIN(time) FROM past_days'
+    )->fetch_row()[0];
+
+    return $start === null ? time() : strtotime($start . ' UTC');
+  }
+
+  /**
+   * Returns the highest wind power generation of the first month of records.
+   *
+   * Records are kept as "the first time this level was reached", which only
+   * means anything once there is a stretch of history to be first within. On
+   * the day observations start, wind climbs through every level below wherever
+   * it happens to be, and each one is written down as a milestone — the
+   * archive opens with a dozen of them sharing one date, saying nothing except
+   * that the data starts there. Levels at or below that opening month's peak
+   * are dropped, since they were very likely reached before the archive began.
+   */
+  private function getWindWarmUpMaximum(): float {
+    $period = $this->connection->query(
+      'SELECT MIN(time) AS first,MAX(time) AS last FROM wind_records'
+    )->fetch_assoc();
+
+    if ($period === null || $period['first'] === null) {
+      return 0;
+    }
+
+    $warmUpEnd = strtotime($period['first'] . ' UTC') + 31 * 24 * 60 * 60;
+
+    // a database younger than the warm-up period has nothing to compare
+    // against yet, so every record it holds is shown
+    if (strtotime($period['last'] . ' UTC') < $warmUpEnd) {
+      return 0;
+    }
+
+    return (float)$this->connection->query(
+      'SELECT MAX(value) FROM wind_records WHERE time<"'
+      . gmdate('Y-m-d H:i:s', $warmUpEnd)
+      . '"'
+    )->fetch_row()[0];
   }
 
   /** Returns the number of visits in the past year. */
