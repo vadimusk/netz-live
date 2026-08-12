@@ -144,10 +144,13 @@ class Database {
   private function getWindMilestones(): array {
     $milestones = [];
 
+    // compared whole gigawatts, since that's the granularity the table shows:
+    // a warm-up peak of 30.04GW makes the whole 30GW row unreliable, not just
+    // the readings below it
     $rows = $this->connection->query(
-      'SELECT * FROM wind_records WHERE value>'
+      'SELECT * FROM wind_records WHERE FLOOR(value)>FLOOR('
       . $this->getWindWarmUpMaximum()
-      . ' ORDER BY value DESC'
+      . ') ORDER BY value DESC'
     );
 
     while ($row = $rows->fetch_assoc()) {
