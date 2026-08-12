@@ -72,6 +72,7 @@ class Emissions {
     'wind_onshore',
     'wind_offshore',
     'hydro',
+    'nuclear',
     'other_renewable',
     'other_conventional'
   ];

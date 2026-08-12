@@ -53,7 +53,45 @@ class Smard {
     int   $from,
     float $divisor = self::DIVISOR
   ): array {
-    $weeks    = self::weeks($from);
+    $series = self::readWeeks($ids, self::weeks($from), $divisor);
+
+    foreach ($series as $id => $values) {
+      $series[$id] = array_filter(
+        $values,
+        fn ($time) => $time >= $from,
+        ARRAY_FILTER_USE_KEY
+      );
+
+      if (count($series[$id]) === 0) {
+        throw new DataException('No data for series ' . $id);
+      }
+    }
+
+    return $series;
+  }
+
+  /**
+   * Reads a set of series over a set of weeks, returning them as an array
+   * mapping each series ID to an array mapping Unix timestamps to values.
+   *
+   * Series that have no file for a week come back empty rather than raising:
+   * over the years covered by the archive, interconnectors get built and
+   * reactors get shut down, so a gap is a fact about the grid, not an error.
+   *
+   * @param array<int> $ids     The series IDs
+   * @param array<int> $weeks   The week timestamps, in milliseconds
+   * @param float      $divisor The divisor converting reported values to the
+   *                            stored unit
+   *
+   * @return array<int,array<int,float>>
+   *
+   * @throws DataException If the data was invalid
+   */
+  public static function readWeeks(
+    array $ids,
+    array $weeks,
+    float $divisor = self::DIVISOR
+  ): array {
     $requests = [];
 
     foreach ($ids as $id) {
@@ -66,19 +104,23 @@ class Smard {
 
     foreach (self::fetch($requests) as list($id, $body)) {
       foreach (self::parse($body, $divisor) as $time => $value) {
-        if ($time >= $from) {
-          $series[$id][Time::normaliseUnix($time, 15)] = $value;
-        }
-      }
-    }
-
-    foreach ($series as $id => $values) {
-      if (count($values) === 0) {
-        throw new DataException('No data for series ' . $id);
+        $series[$id][$time] = $value;
       }
     }
 
     return $series;
+  }
+
+  /**
+   * Returns the week timestamps, in milliseconds, covering a period.
+   *
+   * @param int  $from The start of the period
+   * @param ?int $to   The end of the period; defaults to now
+   *
+   * @return array<int>
+   */
+  public static function weeksBetween(int $from, ?int $to = null): array {
+    return self::weeks($from, $to);
   }
 
   /**
@@ -88,16 +130,17 @@ class Smard {
    * Files are named after the Monday that starts the week, at midnight German
    * local time.
    *
-   * @param int $from The earliest Unix timestamp of interest
+   * @param int  $from The earliest Unix timestamp of interest
+   * @param ?int $to   The latest Unix timestamp of interest; defaults to now
    *
    * @return array<int>
    */
-  private static function weeks(int $from): array {
+  private static function weeks(int $from, ?int $to = null): array {
     $zone  = new \DateTimeZone('Europe/Berlin');
     $week  = (new \DateTime('@' . $from))->setTimezone($zone);
     $week->modify('monday this week')->setTime(0, 0);
 
-    $latest = (new \DateTime('now'))->setTimezone($zone);
+    $latest = (new \DateTime('@' . ($to ?? time())))->setTimezone($zone);
     $latest->modify('monday this week')->setTime(0, 0);
 
     $weeks = [];

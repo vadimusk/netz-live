@@ -18,6 +18,7 @@ class Generation {
     'wind_onshore',
     'wind_offshore',
     'hydro',
+    'nuclear',
     'pumped_generation',
     'pumped_consumption',
     'other_renewable',
@@ -69,8 +70,11 @@ class Generation {
   /**
    * Maps each generation column to its SMARD series ID.
    *
-   * Nuclear power has a series of its own, which isn't read: Germany shut down
-   * its last reactors in April 2023, and the series has reported nothing since.
+   * Nuclear power has a series of its own, which isn't read here: Germany shut
+   * down its last reactors in April 2023, and SMARD stopped publishing weekly
+   * files for it at the start of 2024, so asking for the current week would
+   * fail. The historic import fills the column for the years it ran, and it
+   * stays at zero from April 2023 onwards, which is the truth.
    */
   private const GENERATION_SERIES = [
     'lignite'            => 1223,

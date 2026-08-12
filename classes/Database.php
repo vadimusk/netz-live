@@ -308,20 +308,41 @@ class Database {
    * @param array $data    The data
    */
   public function updateExisting(array $columns, array $data): void {
-    foreach ($data as $datum) {
-      $time   = array_shift($datum);
-      $values = [];
+    foreach (array_chunk($data, 500) as $chunk) {
+      $assignments = [];
 
       foreach ($columns as $index => $column) {
-        $values[] = $column . '=' . (float)$datum[$index];
+        $cases = '';
+
+        foreach ($chunk as $datum) {
+          $cases .= ' WHEN ' . $datum[0] . ' THEN ' . (float)$datum[$index + 1];
+        }
+
+        // rows the batch doesn't mention keep the value they hold, so one
+        // statement can carry a few hundred quarter hours
+        $assignments[] = $column . '=CASE time' . $cases . ' ELSE ' . $column . ' END';
       }
 
       $this->connection->query(
         'UPDATE past_quarter_hours SET '
-        . implode(',', $values)
-        . ' WHERE time='
-        . $time
+        . implode(',', $assignments)
+        . ' WHERE time IN ('
+        . implode(',', array_column($chunk, 0))
+        . ')'
       );
+    }
+  }
+
+  /**
+   * Writes quarter hours directly, without the windowing the regular update
+   * applies. Used by the historic import, which writes years at a time.
+   *
+   * @param array<string> $columns The columns
+   * @param array         $rows    The rows
+   */
+  public function insertQuarterHours(array $columns, array $rows): void {
+    foreach (array_chunk($rows, 200) as $chunk) {
+      $this->updatePastTimeSeries('past_quarter_hours', $columns, $chunk);
     }
   }
 
@@ -359,7 +380,6 @@ class Database {
 
   /** Finishes a database update. */
   public function finishUpdate(): void {
-    $this->deleteOldQuarterHours();
     $this->updateWindRecords();
 
     $this->aggregateTimeSeries(
@@ -379,6 +399,11 @@ class Database {
       'past_years',
       'DATE_SUB(DATE_SUB(time,INTERVAL (DAYOFMONTH(time) - 1) DAY),INTERVAL (MONTH(time) - 1) MONTH)'
     );
+
+    // deleted last, so that the aggregates are built from everything the
+    // quarter hours hold. The historic import writes years of them in one go,
+    // and deleting first would throw that away before it had been rolled up.
+    $this->deleteOldQuarterHours();
   }
 
   /** Deletes old quarter-hourly data to reduce the size of the database. */

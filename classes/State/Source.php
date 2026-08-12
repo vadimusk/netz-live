@@ -12,6 +12,7 @@ enum Source: string {
   case Solar         = 'solar';
   case Wind          = 'wind';
   case Hydro         = 'hydro';
+  case Nuclear       = 'nuclear';
   case Biomass       = 'biomass';
   case Other         = 'other';
   case Austria       = 'austria';

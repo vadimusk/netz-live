@@ -102,6 +102,18 @@ Values are reported as megawatt hours produced within the quarter hour, so multi
   They still trail the generation slightly, so they are written separately and the last known figures are carried forward over the quarter hours they don't reach, rather than holding the generation back.
 - **Day-ahead auction price** for the DE-LU bidding zone, licensed CC BY 4.0. Settled the day before, so it runs ahead of the generation rather than behind it.
 
+### The historic archive
+
+SMARD's archive reaches back to the start of 2015, and [backfill.php](backfill.php) imports it in one pass — around twenty minutes for eleven and a half years. Without it the year and all-time views hold only as much as the site has been running for, and the wind records are whatever the past few weeks happened to produce.
+
+Three things about the archive are worth knowing, since each one is a fact about the grid rather than a gap in the data:
+
+- **Nuclear** ran until 15th April 2023, when Emsland, Isar 2 and Neckarwestheim 2 were disconnected. The column is imported for the years it ran and sits at zero afterwards; the regular update doesn't read the series at all, since SMARD stopped publishing weekly files for it in 2024. Leaving it out would understate the pre-2023 mix by around a tenth.
+- **Norway and Belgium** only appear from late 2020, when NordLink and ALEGrO went into service. Earlier quarter hours are zero because there was no interconnector.
+- **The price** comes from the joint Germany/Austria/Luxembourg bidding zone until it was split on 1st October 2018, and from DE-LU afterwards. Both series are read for every week and the German one wins where it exists, because neither ends on a Monday and a week straddling the split would otherwise come back empty.
+
+Carbon intensity is imported from Energy-Charts year by year, which reaches back to 2015 as well, so the history carries official figures rather than calculated ones.
+
 ### [Energy-Charts](https://www.energy-charts.info/)
 
 Run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/). Only one figure is still read from here, because SMARD doesn't publish it:

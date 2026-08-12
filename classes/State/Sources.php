@@ -10,6 +10,7 @@ class Sources {
   private float $solar;
   private float $wind;
   private float $hydro;
+  private float $nuclear;
   private float $biomass;
   private float $other;
   private float $austria;
@@ -37,6 +38,7 @@ class Sources {
     $this->solar        = $map['solar'];
     $this->wind         = $map['wind_onshore'] + $map['wind_offshore'];
     $this->hydro        = $map['hydro'];
+    $this->nuclear      = $map['nuclear'];
     $this->biomass      = $map['biomass'];
     $this->other        = $map['other_renewable'] + $map['other_conventional'];
     $this->austria       = $map['austria'];
