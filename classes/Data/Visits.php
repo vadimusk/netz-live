@@ -108,7 +108,12 @@ class Visits {
       $data[] = self::getDatum($item);
     }
 
-    $database->update(self::KEYS, $data);
+    // only quarter hours the grid data already covers are written to. Visits
+    // are recorded against midnight, and Cloudflare reports days the site
+    // wasn't collecting grid data for — inserting those would create quarter
+    // hours holding a visit count against no generation at all, which the
+    // daily averages would then read as a quarter of an hour of nothing.
+    $database->updateExisting(self::KEYS, $data);
   }
 
   /**

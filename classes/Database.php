@@ -301,6 +301,31 @@ class Database {
   }
 
   /**
+   * Updates existing quarter hours only, leaving data for quarter hours that
+   * don't exist yet unwritten.
+   *
+   * @param array $columns The columns to update
+   * @param array $data    The data
+   */
+  public function updateExisting(array $columns, array $data): void {
+    foreach ($data as $datum) {
+      $time   = array_shift($datum);
+      $values = [];
+
+      foreach ($columns as $index => $column) {
+        $values[] = $column . '=' . (float)$datum[$index];
+      }
+
+      $this->connection->query(
+        'UPDATE past_quarter_hours SET '
+        . implode(',', $values)
+        . ' WHERE time='
+        . $time
+      );
+    }
+  }
+
+  /**
    * Updates a past time series.
    *
    * @param string $table   The table
