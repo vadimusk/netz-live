@@ -9,9 +9,6 @@ class Graphs {
   /** The height of graphs. */
   private const HEIGHT = 250;
 
-  /** The step size on the visits graph. */
-  private const VISITS_STEP = 100000;
-
   /** The state. */
   private State $state;
 
@@ -90,12 +87,35 @@ class Graphs {
       $state->yearSeries
     );
 
-    $this->setAxis(
-      Graph::Visits,
-      0,
-      count($visits) === 0 ? 0 : max($visits),
-      self::VISITS_STEP
-    );
+    $maximum = count($visits) === 0 ? 0 : max($visits);
+
+    $this->setAxis(Graph::Visits, 0, $maximum, self::visitsStep($maximum));
+  }
+
+  /**
+   * Returns the step size for the visits graph.
+   *
+   * Visits are the one series whose scale isn't set by the grid: a site can
+   * see hundreds a week or hundreds of thousands, so the step is chosen to
+   * leave four or five gridlines at whatever size the figures happen to be.
+   * Upstream can hardcode a step because its traffic is known.
+   *
+   * @param float $maximum The largest value on the graph
+   */
+  private static function visitsStep(float $maximum): int {
+    if ($maximum <= 0) {
+      return 1;
+    }
+
+    $magnitude = 10 ** floor(log10($maximum / 4));
+
+    foreach ([1, 2, 5] as $multiple) {
+      if ($maximum / ($multiple * $magnitude) <= 5) {
+        return (int)max(1, $multiple * $magnitude);
+      }
+    }
+
+    return (int)max(1, 10 * $magnitude);
   }
 
   /**

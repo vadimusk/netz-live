@@ -22,7 +22,11 @@ class About {
           <?= I18n::t('about.p1', $locale) ?>
         </p>
         <p>
-          <?= I18n::t('about.p2', $locale, [I18n::number($state->visits, 0, $locale)]) ?>
+          <?= I18n::t(
+            $state->visitsCoverYear ? 'about.p2' : 'about.p2.short',
+            $locale,
+            [I18n::number($state->visits, 0, $locale)]
+          ) ?>
         </p>
         <?php (new Graphs($state))->output(Graph::Visits, Period::Year, $locale); ?>
         <p>

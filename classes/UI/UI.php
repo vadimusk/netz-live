@@ -12,6 +12,24 @@ class UI {
    */
   private const BASE_URL = 'https://netz.vterskov.de/';
 
+  /**
+   * Returns a sitemap entry for a page, cross-referencing the other language.
+   *
+   * @param string $path     The path below the base URL
+   * @param string $modified The last modification time, in ISO 8601 format
+   */
+  public static function sitemapEntry(string $path, string $modified): string {
+    return (
+      '<url><loc>' . self::BASE_URL . $path . '</loc>'
+      . '<lastmod>' . $modified . '</lastmod>'
+      . '<changefreq>hourly</changefreq>'
+      . '<xhtml:link rel="alternate" hreflang="de" href="' . self::BASE_URL . '"/>'
+      . '<xhtml:link rel="alternate" hreflang="en" href="' . self::BASE_URL . 'en/"/>'
+      . '<xhtml:link rel="alternate" hreflang="x-default" href="' . self::BASE_URL . '"/>'
+      . '</url>'
+    );
+  }
+
   /** The state. */
   private State $state;
 
@@ -66,11 +84,40 @@ class UI {
     <link rel="canonical" href="<?= $canonicalUrl ?>">
     <link rel="alternate" hreflang="de" href="<?= self::BASE_URL ?>">
     <link rel="alternate" hreflang="en" href="<?= self::BASE_URL ?>en/">
+    <link rel="alternate" hreflang="x-default" href="<?= self::BASE_URL ?>">
     <link rel="stylesheet" href="<?= $root ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
     <link rel="icon" href="<?= $root ?>favicon.png" type="image/png">
     <link rel="icon" href="<?= $root ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
     <link rel="apple-touch-icon" href="<?= $root ?>apple-touch-icon.png">
     <script src="<?= $root ?>grid.js?<?= $javascriptModified ?>" defer></script>
+    <script type="application/ld+json"><?= json_encode([
+      '@context'    => 'https://schema.org',
+      '@type'       => 'Dataset',
+      'name'        => I18n::t('site.title', $locale),
+      'description' => I18n::t('site.description', $locale),
+      'url'         => $canonicalUrl,
+      'inLanguage'  => $locale,
+      'license'     => 'https://creativecommons.org/publicdomain/zero/1.0/',
+      'isAccessibleForFree' => true,
+      'creativeWorkStatus'  => 'Published',
+      'dateModified'        => gmdate('c', $this->state->time),
+      'temporalCoverage'    => gmdate('Y-m-d', $this->state->windMilestonesSince) . '/..',
+      // Place rather than the more precise Country: Country is a subtype of
+      // Place, but Google's validator only accepts the base type here
+      'spatialCoverage'     => [
+        '@type' => 'Place',
+        'name'  => $locale === 'de' ? 'Deutschland' : 'Germany'
+      ],
+      'variableMeasured' => array_map(
+        fn ($key) => I18n::t($key, $locale),
+        ['graph.generation', 'graph.price', 'graph.emissions', 'graph.transfers']
+      ),
+      'creator' => [
+        '@type' => 'Organization',
+        'name'  => 'Bundesnetzagentur (SMARD)',
+        'url'   => 'https://www.smard.de/'
+      ]
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
   </head>
   <body>
     <header>

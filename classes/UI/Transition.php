@@ -51,6 +51,11 @@ class Transition {
 
 ?>
         </table>
+        <p>
+          <?= I18n::t('transition.since', $locale, [
+            I18n::longDate($state->windMilestonesSince, $locale)
+          ]) ?>
+        </p>
       </section>
 <?php
   }

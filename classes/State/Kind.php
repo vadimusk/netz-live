@@ -46,6 +46,7 @@ enum Kind: string {
         Source::Solar,
         Source::Wind,
         Source::Hydro,
+        Source::Nuclear,
         Source::Biomass,
         Source::Other
       ],
@@ -60,6 +61,7 @@ enum Kind: string {
         Source::Hydro
       ],
       self::Others => [
+        Source::Nuclear,
         Source::Biomass,
         Source::Other
       ],
