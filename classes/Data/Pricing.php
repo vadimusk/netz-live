@@ -40,6 +40,9 @@ class Pricing {
       $data[] = [$time, $value];
     }
 
-    $database->update(self::KEYS, $data);
+    // settled a day ahead, so the price runs past the newest generation. Only
+    // the quarter hours the generation has reached are written, since a row
+    // holding a price and nothing else reads as a grid that stopped.
+    $database->updateExisting(self::KEYS, $data);
   }
 }

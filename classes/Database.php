@@ -351,23 +351,6 @@ class Database {
   }
 
   /**
-   * Updates data, ignoring data prior to the earliest quarter hour or past
-   * the latest quarter hour.
-   *
-   * @param array $columns The columns to update
-   * @param array $data    The data
-   */
-  public function update(array $columns, array $data): void {
-    $earliest = '"' . $this->getEarliestQuarterHour() . '"';
-    $latest   = '"' . $this->getLatestQuarterHour() . '"';
-
-    $this->updatePastTimeSeries('past_quarter_hours', $columns, array_filter(
-      $data,
-      fn ($datum) => $datum[0] >= $earliest && $datum[0] <= $latest
-    ));
-  }
-
-  /**
    * Updates existing quarter hours only, leaving data for quarter hours that
    * don't exist yet unwritten.
    *

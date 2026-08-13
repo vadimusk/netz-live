@@ -135,7 +135,13 @@ class Generation {
     $from = time() - self::PERIOD;
 
     $generation = self::readGeneration($from);
-    $transfers  = self::readTransfers($from);
+
+    // flows are held to the quarter hours the generation reaches. They are
+    // published within minutes of each other and either can arrive first, so
+    // letting the flows write a quarter hour of their own would show a full
+    // set of cross-border figures against a generation mix of nothing until
+    // the generation caught up a few minutes later.
+    $transfers = array_intersect_key(self::readTransfers($from), $generation);
 
     $database->updateGeneration(
       self::rows($generation, self::GENERATION_COLUMNS),

@@ -87,7 +87,7 @@ class Emissions {
   public static function update(Database $database): void {
     $official = self::readOfficial();
 
-    $database->update(self::KEYS, array_values($official));
+    $database->updateExisting(self::KEYS, array_values($official));
 
     $database->updateComputedEmissions(
       self::FACTORS,
