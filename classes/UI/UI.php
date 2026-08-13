@@ -102,8 +102,10 @@ class UI {
       'creativeWorkStatus'  => 'Published',
       'dateModified'        => gmdate('c', $this->state->time),
       'temporalCoverage'    => gmdate('Y-m-d', $this->state->windMilestonesSince) . '/..',
+      // Place rather than the more precise Country: Country is a subtype of
+      // Place, but Google's validator only accepts the base type here
       'spatialCoverage'     => [
-        '@type' => 'Country',
+        '@type' => 'Place',
         'name'  => $locale === 'de' ? 'Deutschland' : 'Germany'
       ],
       'variableMeasured' => array_map(
