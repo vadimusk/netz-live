@@ -3,3 +3,5 @@
 /public/index.html
 /public/en/index.html
 /public/sitemap.xml
+/public/google*.html
+.DS_Store
