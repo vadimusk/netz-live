@@ -171,19 +171,21 @@ class Generation {
       $from
     );
 
-    $data = [];
+    $times = self::allTimes($series);
+    $data  = [];
 
     foreach (self::GENERATION_SERIES as $column => $id) {
-      foreach ($series[$id] as $time => $value) {
-        $data[$time][$column] = $value;
-      }
+      self::carryForward($data, $column, $series[$id], $times);
     }
 
     // consumption is stored as a negative value, so that adding it to
     // generation gives the net signed power of the pumped storage fleet
-    foreach ($series[self::PUMPED_CONSUMPTION_SERIES] as $time => $value) {
-      $data[$time]['pumped_consumption'] = -$value;
-    }
+    self::carryForward(
+      $data,
+      'pumped_consumption',
+      array_map(fn ($value) => -$value, $series[self::PUMPED_CONSUMPTION_SERIES]),
+      $times
+    );
 
     return self::complete($data, self::GENERATION_COLUMNS);
   }
@@ -204,29 +206,87 @@ class Generation {
       $from
     );
 
-    $data = [];
+    $times = self::allTimes($series);
+    $data  = [];
 
     // SMARD reports exports as positive values and imports as negative ones,
     // both from Germany's point of view, so negating their sum gives the net
     // import: positive when Germany is drawing power from a neighbour
     foreach (self::TRANSFER_SERIES as $column => list($export, $import)) {
-      foreach ($series[$export] as $time => $value) {
-        if (isset($series[$import][$time])) {
-          $data[$time][$column] = round(-($value + $series[$import][$time]), 3);
+      $net = [];
+
+      foreach ($times as $time) {
+        if (isset($series[$export][$time]) && isset($series[$import][$time])) {
+          $net[$time] = round(-($series[$export][$time] + $series[$import][$time]), 3);
         }
       }
+
+      self::carryForward($data, $column, $net, $times);
     }
 
     return self::complete($data, self::TRANSFER_COLUMNS);
   }
 
   /**
+   * Returns the union of times across a set of series, in ascending order.
+   *
+   * @param array<int,array<string,float>> $series
+   *
+   * @return array<string>
+   */
+  private static function allTimes(array $series): array {
+    $times = [];
+
+    foreach ($series as $values) {
+      $times += $values;
+    }
+
+    ksort($times);
+
+    return array_keys($times);
+  }
+
+  /**
+   * Merges a column into the data array, carrying the last known value
+   * forward over quarter hours the series hasn't reached yet.
+   *
+   * SMARD occasionally leaves a single series unpublished for hours — a
+   * stall on one transmission system operator's side, not the usual
+   * few-minute gap between files — and without this, requiring every column
+   * at once in complete() would drop every quarter hour until that one
+   * series caught up, freezing the whole site over a single stalled reading
+   * rather than just that one.
+   *
+   * @param array                $data   The data array to merge into
+   * @param string               $column The column
+   * @param array<string,float>  $values The column's values, keyed by time
+   * @param array<string>        $times  The times to fill, in order
+   */
+  private static function carryForward(
+    array  &$data,
+    string $column,
+    array  $values,
+    array  $times
+  ): void {
+    $last = null;
+
+    foreach ($times as $time) {
+      if (isset($values[$time])) {
+        $last = $values[$time];
+      }
+
+      if ($last !== null) {
+        $data[$time][$column] = $last;
+      }
+    }
+  }
+
+  /**
    * Filters out times that not every column reaches.
    *
-   * The series are published one file at a time and don't always end on the
-   * same quarter hour, so the most recent quarter hours can be covered by some
-   * columns and not others. Writing those in would understate the total, which
-   * on the flows would read as a neighbour that had stopped trading.
+   * This is the fallback for a column that has no value at all within the
+   * period read — most often the very first quarter hours of a new
+   * database, before carryForward() has anything to carry.
    *
    * @param array         $data    The data
    * @param array<string> $columns The columns each time must cover
