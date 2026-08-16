@@ -47,6 +47,19 @@ const STATE_FILE = '/var/lib/netz-live/watchdog.state';
  */
 const HEARTBEAT_FILE = '/var/lib/netz-live/watchdog.ok';
 
+/**
+ * The origin to request when checking that the site is actually being served,
+ * and the host to ask it for.
+ *
+ * The database being current says nothing about anyone being able to read the
+ * page: the web server can be down while updates carry on writing files
+ * perfectly happily. This checks the origin directly rather than the public
+ * URL, so that an outage at the CDN isn't mistaken for one here — the CDN
+ * keeps serving cached pages anyway, and nothing on this machine can fix it.
+ */
+const SITE_ORIGIN = 'http://127.0.0.1/';
+const SITE_HOST   = 'netz.vterskov.de';
+
 $verbose = in_array('--verbose', $argv, true);
 $problem = check();
 
@@ -80,6 +93,38 @@ echo "\n";
 
 exit(1);
 
+/**
+ * Returns a description of the site not being served, or null if it is.
+ */
+function checkServed(): ?string {
+  $handle = curl_init(SITE_ORIGIN);
+
+  curl_setopt_array($handle, [
+    CURLOPT_HTTPHEADER     => ['Host: ' . SITE_HOST],
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT        => 15,
+    CURLOPT_FOLLOWLOCATION => true,
+    // the redirect to HTTPS comes back to this same machine, whose
+    // certificate is issued for the public name rather than for 127.0.0.1
+    CURLOPT_SSL_VERIFYHOST => 0,
+    CURLOPT_SSL_VERIFYPEER => false,
+    CURLOPT_RESOLVE        => [SITE_HOST . ':443:127.0.0.1']
+  ]);
+
+  $body = curl_exec($handle);
+  $code = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+
+  if ($body === false) {
+    return 'site not being served: ' . curl_error($handle);
+  }
+
+  if ($code !== 200) {
+    return 'site not being served: HTTP ' . $code;
+  }
+
+  return null;
+}
+
 /** Creates the directory holding the state and heartbeat files. */
 function ensureDirectory(): void {
   $directory = dirname(STATE_FILE);
@@ -93,6 +138,12 @@ function ensureDirectory(): void {
  * Returns a description of what is wrong, or null if everything is fine.
  */
 function check(): ?string {
+  $served = checkServed();
+
+  if ($served !== null) {
+    return $served;
+  }
+
   try {
     mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
