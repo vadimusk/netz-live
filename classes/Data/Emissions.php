@@ -85,9 +85,23 @@ class Emissions {
    * @throws DataException If the data was invalid
    */
   public static function update(Database $database): void {
-    $official = self::readOfficial();
+    $official = [];
+    $failure  = null;
 
-    $database->updateExisting(self::KEYS, array_values($official));
+    // the calculated figures are what stands in for the official ones when
+    // they are late, so they mustn't depend on the official source being
+    // reachable: if Energy-Charts is down, the quarter hours it hasn't
+    // covered still get filled in from the mix, and the failure is reported
+    // afterwards rather than instead
+    try {
+      $official = self::readOfficial();
+    } catch (DataException $e) {
+      $failure = $e;
+    }
+
+    if (count($official) !== 0) {
+      $database->updateExisting(self::KEYS, array_values($official));
+    }
 
     $database->updateComputedEmissions(
       self::FACTORS,
@@ -95,6 +109,10 @@ class Emissions {
       self::OFFSET,
       count($official) === 0 ? null : max(array_keys($official))
     );
+
+    if ($failure !== null) {
+      throw $failure;
+    }
   }
 
   /**

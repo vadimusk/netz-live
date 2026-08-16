@@ -317,7 +317,7 @@ class Database {
    * @param float             $offset      A constant added to the total
    * @param ?string           $after       The latest quarter hour the official
    *                                        figures cover, quoted for SQL, or
-   *                                        null if they cover none
+   *                                        null if none were read at all
    */
   public function updateComputedEmissions(
     array   $factors,
@@ -345,8 +345,15 @@ class Database {
       . ')>0'
       // quarter hours the official figures already cover are left alone, but
       // any they skipped are filled in: a new database starts with a few of
-      // them, since the generation reaches back slightly further
-      . ($after === null ? '' : ' AND (time>' . $after . ' OR emissions=0)')
+      // them, since the generation reaches back slightly further.
+      //
+      // Reading no official figures at all means the source was unreachable,
+      // not that every quarter hour needs recalculating — overwriting the
+      // official figures already held with calculated ones would throw away
+      // the better number for as long as the outage lasted.
+      . ($after === null
+        ? ' AND emissions=0'
+        : ' AND (time>' . $after . ' OR emissions=0)')
     );
   }
 
