@@ -37,6 +37,16 @@ const REPEAT_AFTER = 6 * 60 * 60;
 /** Where the last alert is remembered, so a long outage isn't reported hourly. */
 const STATE_FILE = '/var/lib/netz-live/watchdog.state';
 
+/**
+ * Touched on every clean check, so that the watchdog itself can be seen to be
+ * running.
+ *
+ * A watchdog that reports only problems is silent whether all is well or it
+ * stopped running months ago. The modification time of this file tells the two
+ * apart.
+ */
+const HEARTBEAT_FILE = '/var/lib/netz-live/watchdog.ok';
+
 $verbose = in_array('--verbose', $argv, true);
 $problem = check();
 
@@ -44,6 +54,9 @@ if ($problem === null) {
   if ($verbose) {
     echo "OK\n";
   }
+
+  ensureDirectory();
+  @touch(HEARTBEAT_FILE);
 
   // clearing the state means a problem that comes back after being fixed is
   // reported again immediately rather than being silenced by the repeat window
@@ -66,6 +79,15 @@ if (shouldReport($problem)) {
 echo "\n";
 
 exit(1);
+
+/** Creates the directory holding the state and heartbeat files. */
+function ensureDirectory(): void {
+  $directory = dirname(STATE_FILE);
+
+  if (!is_dir($directory)) {
+    @mkdir($directory, 0755, true);
+  }
+}
 
 /**
  * Returns a description of what is wrong, or null if everything is fine.
@@ -111,11 +133,7 @@ function check(): ?string {
  * @param string $problem The problem
  */
 function shouldReport(string $problem): bool {
-  $directory = dirname(STATE_FILE);
-
-  if (!is_dir($directory)) {
-    @mkdir($directory, 0755, true);
-  }
+  ensureDirectory();
 
   // the kind of problem rather than its exact wording, so that an ageing
   // figure in the message doesn't read as a new problem every time
