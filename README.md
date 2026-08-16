@@ -56,6 +56,20 @@ Set up a cron job to execute the `update.php` script (using the [PHP CLI SAPI](h
 
 The script outputs details of the update process to standard output, and details of errors to standard error. An error with an individual data source does not abort the rest of the update process.
 
+### Monitoring
+
+`update.php` reports the failures it can see, but its worst one is invisible to it. SMARD once left a single generation series unpublished for eighteen hours; every run completed cleanly and logged nothing but `OK`, because a run that has nothing valid to write is not an error. The site simply stopped moving. Counting errors cannot catch that — only the age of the newest quarter hour can.
+
+[watchdog.php](watchdog.php) is run from its own cron job, every thirty minutes, and reports when the data stops advancing for more than two hours, when the database is unreachable, and when there is no data at all. It remembers what it last reported, so a long outage alerts once rather than every half hour, and forgets once the problem clears, so a recurrence is reported immediately. It also touches `/var/lib/netz-live/watchdog.ok` on every clean check — a watchdog that speaks only when something is wrong otherwise looks identical whether all is well or it stopped running months ago.
+
+Alerts go to Telegram if `ALERT_TELEGRAM_TOKEN` and `ALERT_TELEGRAM_CHAT` are set, and to a webhook if `ALERT_WEBHOOK` is, as a JSON `POST` with a `text` field. They are printed regardless, so cron captures them either way. With no channel configured the watchdog still works, but nobody is told — the deployment needs at least one.
+
+### Backups
+
+The eleven years of history can be rebuilt from SMARD in about eight minutes with `backfill.php`, so the dumps exist for what cannot: the accumulated visit counts and the wind records, both of which are only ever built up locally.
+
+The live deployment dumps the database nightly to `/root/backups` via `/usr/local/bin/netz-live-backup`, keeping a week. Note that this protects against the data being corrupted, not against losing the machine; copying the dumps somewhere else is left to whoever runs it.
+
 ### Fonts
 
 The site is set in a system font stack (`-apple-system`, `Segoe UI`, `Roboto`, `Helvetica Neue`, `Arial`) rather than the commercial Proza the upstream project uses. Proza Libre, the free version of Proza, and Source Sans 3 were both tried in turn — the former reads heavier than upstream since it starts at weight 400 where upstream's body text is 300, and the latter draws a visibly different question mark glyph on the help icons, which is subtle enough to be hard to place but stood out once several were on screen together. The system stack sidesteps both: no face to license, no glyph shapes to compare against Proza's, and it renders in whatever the visitor's own OS already uses for its interface.
