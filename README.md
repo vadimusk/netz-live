@@ -32,7 +32,7 @@ docker compose down
 
 ## Production
 
-The production environment does not use Docker, instead running directly on the server. PHP 8.3 and a recent version of MariaDB or MySQL are required.
+The production environment does not use Docker, instead running directly on the server. PHP 8.3 or later and a recent version of MariaDB or MySQL are required. The live deployment runs PHP 8.5, and the development image is pinned to the same version so that a deprecation in a newer PHP surfaces locally rather than in production, which is how `curl_close()` being removed in 8.5 was found.
 
 ### Files
 

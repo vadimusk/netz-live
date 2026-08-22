@@ -1,4 +1,4 @@
-FROM php:8.3-cli-alpine AS php
+FROM php:8.5-cli-alpine AS php
 RUN docker-php-ext-install mysqli
 
 FROM nginx:alpine-slim AS web
