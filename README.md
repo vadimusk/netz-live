@@ -118,7 +118,7 @@ Values are reported as megawatt hours produced within the quarter hour, so multi
 
 ### The historic archive
 
-SMARD's archive reaches back to the start of 2015, and [backfill.php](backfill.php) imports it in one pass — around twenty minutes for eleven and a half years. Without it the year and all-time views hold only as much as the site has been running for, and the wind records are whatever the past few weeks happened to produce.
+SMARD's archive reaches back to the start of 2015, and [backfill.php](backfill.php) imports it in one pass — about eight minutes for eleven and a half years. Without it the year and all-time views hold only as much as the site has been running for, and the wind records are whatever the past few weeks happened to produce.
 
 Three things about the archive are worth knowing, since each one is a fact about the grid rather than a gap in the data:
 
