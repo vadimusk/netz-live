@@ -9,6 +9,9 @@ class Graphs {
   /** The height of graphs. */
   private const HEIGHT = 250;
 
+  /** The fewest points a graph needs before it is worth drawing. */
+  private const MINIMUM_POINTS = 4;
+
   /** The state. */
   private State $state;
 
@@ -173,6 +176,62 @@ class Graphs {
   }
 
   /**
+   * Returns the series a graph is plotted from.
+   *
+   * Visits are the one series that starts empty. A new site has a year of zero
+   * weeks behind its first visit, and plotting all of them draws a flat line
+   * along the bottom with a single spike at the end, which reads as a broken
+   * graph rather than a young one. Dropping the leading zeroes plots only the
+   * weeks that were actually counted, and the graph grows into the full year
+   * by itself.
+   *
+   * Only leading zeroes are dropped. A zero week between two counted ones is a
+   * real week with no visitors and stays where it is.
+   *
+   * @param Graph  $graph  The graph
+   * @param Period $period The time period
+   *
+   * @return array<int, mixed>
+   */
+  private function series(Graph $graph, Period $period): array {
+    $series = $period->series($this->state);
+
+    if ($graph !== Graph::Visits) {
+      return $series;
+    }
+
+    $offset = 0;
+
+    foreach ($series as $datum) {
+      if ($graph->get($datum)[0] > 0) {
+        break;
+      }
+
+      $offset ++;
+    }
+
+    // the keys are timestamps, which the time axis and the background both
+    // read, so they have to survive the slice
+    return array_slice($series, $offset, null, true);
+  }
+
+  /**
+   * Returns whether a graph has enough points to be worth drawing.
+   *
+   * Below a few points there is no shape to see, and for visits the sentence
+   * above the graph already gives the figure, so an almost empty graph is left
+   * out rather than drawn. This is the same reasoning that picks the wording of
+   * that sentence: a site that just went up should read as new, not as one
+   * nobody goes to.
+   *
+   * @param Graph  $graph  The graph
+   * @param Period $period The time period
+   */
+  public function hasShape(Graph $graph, Period $period): bool {
+    return count($this->series($graph, $period)) >= self::MINIMUM_POINTS;
+  }
+
+  /**
    * Outputs a graph.
    *
    * @param Graph  $graph  The graph
@@ -195,14 +254,14 @@ class Graphs {
     echo '>';
 
     $this->outputValueAxis($graph, $locale);
-    $this->outputTimeAxis($period, $locale);
+    $this->outputTimeAxis($graph, $period, $locale);
 
     echo '<svg viewBox="-0.5 -1 ';
-    echo count($period->series($this->state));
+    echo count($this->series($graph, $period));
     echo ' ';
     echo self::HEIGHT + 2;
     echo '" width="';
-    echo count($period->series($this->state));
+    echo count($this->series($graph, $period));
     echo '" height="';
     echo self::HEIGHT + 2;
     echo '" preserveAspectRatio="none">';
@@ -251,15 +310,16 @@ class Graphs {
   /**
    * Outputs the time axis.
    *
+   * @param Graph  $graph  The graph
    * @param Period $period The time period
    * @param string $locale The locale ('de' or 'en')
    */
-  private function outputTimeAxis(Period $period, string $locale): void {
+  private function outputTimeAxis(Graph $graph, Period $period, string $locale): void {
     echo '<div>';
 
     $index = ceil($period->tickmarkInterval() / 2);
 
-    foreach ($period->series($this->state) as $time => $_) {
+    foreach ($this->series($graph, $period) as $time => $_) {
       if ($index % $period->tickmarkInterval() === 0) {
         echo '<div>';
         echo $period->format($time, $locale);
@@ -286,7 +346,7 @@ class Graphs {
 
     $index = 0;
 
-    foreach ($period->series($this->state) as $time => $datum) {
+    foreach ($this->series($graph, $period) as $time => $datum) {
       echo '<rect x="';
       echo $index;
       echo '" y="0" width="1" height="1" data-time="';
@@ -329,7 +389,7 @@ class Graphs {
         echo '<rect class="';
         echo $class;
         echo '" x="0" y="-1" width="';
-        echo count($period->series($this->state));
+        echo count($this->series($graph, $period));
         echo '" height="';
 
         if ($minimumLevel === $minimum) {
@@ -351,7 +411,7 @@ class Graphs {
       $graph->classes()
     );
 
-    foreach ($period->series($this->state) as $datum) {
+    foreach ($this->series($graph, $period) as $datum) {
       foreach ($graph->get($datum) as $key => $value) {
         $lines[$key]->add($value);
       }

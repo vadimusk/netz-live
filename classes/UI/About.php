@@ -28,7 +28,16 @@ class About {
             [I18n::number($state->visits, 0, $locale)]
           ) ?>
         </p>
-        <?php (new Graphs($state))->output(Graph::Visits, Period::Year, $locale); ?>
+        <?php
+          // Drawn only once there is a shape to see. Until then the sentence
+          // above carries the figure on its own, which is better than a graph
+          // that is mostly the weeks before anyone had heard of the site.
+          $graphs = new Graphs($state);
+
+          if ($graphs->hasShape(Graph::Visits, Period::Year)) {
+            $graphs->output(Graph::Visits, Period::Year, $locale);
+          }
+        ?>
         <p>
           <?= I18n::t('about.p3', $locale) ?>
         </p>

@@ -23,7 +23,16 @@ spl_autoload_register(function ($class) {
 
 Environment::load(__DIR__ . '/.env');
 
-$database = new Database();
+// without the database there is nothing any of the steps below can do, so
+// this exits rather than throwing an uncaught fatal: the message stays
+// readable in the log, and the non-zero status lets the watchdog tell a
+// failed run from a run that had nothing to write
+try {
+  $database = new Database();
+} catch (\Throwable $e) {
+  echo 'Database unavailable: ' . $e->getMessage() . "\n";
+  exit(1);
+}
 
 foreach ([
   'Updating generation… ' => function (Database $database) {
@@ -107,6 +116,11 @@ foreach ([
         trigger_error(trim($action) . ' ' . $error);
       }
     }
+  } catch (\Throwable $e) {
+    // anything a step didn't anticipate is still that step's problem: the
+    // later ones, in particular writing the pages, shouldn't be skipped
+    // because an earlier one broke in a way nobody predicted
+    echo 'FAILED: ' . get_class($e) . ': ' . $e->getMessage();
   }
 
   echo ' (' . sprintf('%0.3f', microtime(true) - $start) . " seconds)\n";
