@@ -72,7 +72,11 @@ The live deployment dumps the database nightly to `/root/backups` via `/usr/loca
 
 ### Fonts
 
-The site is set in a system font stack (`-apple-system`, `Segoe UI`, `Roboto`, `Helvetica Neue`, `Arial`) rather than the commercial Proza the upstream project uses. Proza Libre, the free version of Proza, and Source Sans 3 were both tried in turn — the former reads heavier than upstream since it starts at weight 400 where upstream's body text is 300, and the latter draws a visibly different question mark glyph on the help icons, which is subtle enough to be hard to place but stood out once several were on screen together. The system stack sidesteps both: no face to license, no glyph shapes to compare against Proza's, and it renders in whatever the visitor's own OS already uses for its interface.
+The site is set in [IBM Plex Sans](https://github.com/IBM/plex), subset from the official variable font to the characters these pages actually print and served from `public/ibm-plex-sans.woff2` (26 KB). It is licensed under the SIL Open Font License, a copy of which is in `public/IBM-PLEX-LICENCE.txt`.
+
+Two earlier attempts are worth recording, because both failed for reasons that only show up on the page. Proza Libre, the free version of the commercial Proza the upstream project uses, has no weight below 400, so every page read heavier than upstream, whose body text is 300. Source Sans 3 fixed the weight but draws a visibly different question mark, which is hard to place on its own and unmistakable once several help icons sit on screen together.
+
+IBM Plex Sans avoids both: it is variable, so one file covers 300 for the body and 400 for the headings, and its figures are tabular by default — every digit the same width — which is what keeps the columns of numbers from shuffling as the data updates. The width axis is pinned and the weight axis clipped to the range in use, and the subset carries the German diacritics, the euro sign, the true minus and the subscript two of CO₂, the last of which Google's own Latin subset leaves out.
 
 ### Cloudflare
 

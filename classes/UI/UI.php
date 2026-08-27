@@ -85,6 +85,7 @@ class UI {
     <link rel="alternate" hreflang="de" href="<?= self::BASE_URL ?>">
     <link rel="alternate" hreflang="en" href="<?= self::BASE_URL ?>en/">
     <link rel="alternate" hreflang="x-default" href="<?= self::BASE_URL ?>">
+    <link rel="preload" href="<?= $root ?>ibm-plex-sans.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="<?= $root ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
     <link rel="icon" href="<?= $root ?>favicon.png" type="image/png">
     <link rel="icon" href="<?= $root ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
@@ -122,16 +123,13 @@ class UI {
   <body>
     <header>
       <p>
-        <?= I18n::t('site.credit', $locale) ?> <a href="<?= I18n::t('site.switchPath', $locale) ?>" hreflang="<?= $locale === 'de' ? 'en' : 'de' ?>"><?= I18n::t('site.switchLabel', $locale) ?></a>
+        <a href="<?= I18n::t('site.switchPath', $locale) ?>" hreflang="<?= $locale === 'de' ? 'en' : 'de' ?>"><?= I18n::t('site.switchLabel', $locale) ?></a>
       </p>
       <h1>
         <?= I18n::t('site.title', $locale) ?>
       </h1>
       <p>
         <span><?= I18n::t('site.tagline1', $locale) ?></span> <span><?= I18n::t('site.tagline2', $locale) ?></span>
-      </p>
-      <p class="lag">
-        <?= I18n::t('site.lag', $locale) ?>
       </p>
     </header>
     <main>
