@@ -114,8 +114,8 @@ class UI {
       ),
       'creator' => [
         '@type' => 'Organization',
-        'name'  => 'Bundesnetzagentur (SMARD)',
-        'url'   => 'https://www.smard.de/'
+        'name'  => 'ENTSO-E Transparency Platform',
+        'url'   => 'https://transparency.entsoe.eu/'
       ]
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
   </head>

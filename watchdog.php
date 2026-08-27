@@ -25,11 +25,13 @@ Environment::load(__DIR__ . '/.env');
  * How old the newest quarter hour may be before something is wrong, in
  * seconds.
  *
- * SMARD publishes around 45 minutes after the fact and the cron adds up to
- * five more, so anything under an hour is normal. Two hours means several
- * publication rounds have been missed.
+ * ENTSO-E publishes about half an hour after the quarter hour ends, and the
+ * cron adds up to five more, so anything under about forty minutes is normal.
+ * Ninety minutes means several publication rounds have been missed — and
+ * because the fallback to SMARD costs hours, this has to fire well before
+ * that would look like business as usual.
  */
-const STALE_AFTER = 2 * 60 * 60;
+const STALE_AFTER = 90 * 60;
 
 /** How long to wait before repeating an alert about the same problem. */
 const REPEAT_AFTER = 6 * 60 * 60;
@@ -80,11 +82,17 @@ if ($problem === null) {
 echo date('c') . ' ' . $problem;
 
 if (shouldReport($problem)) {
-  $channels = notify($problem);
+  list($attempted, $delivered) = notify($problem);
 
-  echo $channels === 0
-    ? ' [no alert channel configured]'
-    : ' [alerted via ' . $channels . ' channel(s)]';
+  if ($attempted === 0) {
+    echo ' [no alert channel configured]';
+  } elseif ($delivered === 0) {
+    // the alarm bell itself is broken, which is worse than the problem it was
+    // ringing about: this line is what the update log will show for it
+    echo ' [ALERT NOT DELIVERED: ' . $attempted . ' channel(s) all failed]';
+  } else {
+    echo ' [alerted via ' . $delivered . ' of ' . $attempted . ' channel(s)]';
+  }
 } else {
   echo ' [already reported, alert suppressed]';
 }
@@ -218,40 +226,44 @@ function shouldReport(string $problem): bool {
  *
  * @param string $problem The problem
  */
-function notify(string $problem): int {
-  $message  = 'Stromnetz: Live — ' . $problem;
-  $channels = 0;
+function notify(string $problem): array {
+  $message   = 'Stromnetz: Live — ' . $problem;
+  $attempted = 0;
+  $delivered = 0;
 
   $token = (string)getenv('ALERT_TELEGRAM_TOKEN');
   $chat  = (string)getenv('ALERT_TELEGRAM_CHAT');
 
   if ($token !== '' && $chat !== '') {
-    post(
+    $attempted ++;
+    $delivered += post(
       'https://api.telegram.org/bot' . $token . '/sendMessage',
       ['chat_id' => $chat, 'text' => $message]
-    );
-
-    $channels ++;
+    ) ? 1 : 0;
   }
 
   $webhook = (string)getenv('ALERT_WEBHOOK');
 
   if ($webhook !== '') {
-    post($webhook, ['text' => $message]);
-
-    $channels ++;
+    $attempted ++;
+    $delivered += post($webhook, ['text' => $message]) ? 1 : 0;
   }
 
-  return $channels;
+  return [$attempted, $delivered];
 }
 
 /**
- * Posts JSON to a URL, ignoring the response.
+ * Posts JSON to a URL, returning whether it was accepted.
+ *
+ * The response is checked rather than discarded, because a monitor that
+ * cannot tell a delivered alert from a rejected one is not monitoring
+ * anything: a revoked token or a blocked bot would leave the site failing
+ * quietly behind an alarm that reports itself as ringing.
  *
  * @param string $url  The URL
  * @param array  $data The data
  */
-function post(string $url, array $data): void {
+function post(string $url, array $data): bool {
   $handle = curl_init($url);
 
   curl_setopt_array($handle, [
@@ -263,4 +275,11 @@ function post(string $url, array $data): void {
   ]);
 
   curl_exec($handle);
+
+  $code  = (int)curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+  $error = curl_errno($handle);
+
+  curl_close($handle);
+
+  return $error === 0 && $code >= 200 && $code < 300;
 }
