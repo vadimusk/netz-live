@@ -6,6 +6,7 @@ use KateMorley\Grid\Database;
 use KateMorley\Grid\Environment;
 use KateMorley\Grid\Data\DataException;
 use KateMorley\Grid\Data\Emissions;
+use KateMorley\Grid\Data\Frequency;
 use KateMorley\Grid\Data\Generation;
 use KateMorley\Grid\Data\Pricing;
 use KateMorley\Grid\Data\Visits;
@@ -34,6 +35,9 @@ try {
   exit(1);
 }
 
+// read fresh on every run and never stored: see classes/Data/Frequency.php
+$frequency = null;
+
 foreach ([
   'Updating generation… ' => function (Database $database) {
     Generation::update($database);
@@ -55,11 +59,17 @@ foreach ([
     $database->finishUpdate();
   },
 
-  'Outputting files…    ' => function (Database $database) {
+  // last before the pages are written, so the figure on them is as close to
+  // now as it can be. A failure here costs the band and nothing else.
+  'Reading frequency…   ' => function (Database $database) use (&$frequency) {
+    $frequency = Frequency::read();
+  },
+
+  'Outputting files…    ' => function (Database $database) use (&$frequency) {
     $state = $database->getState();
 
     ob_start();
-    (new UI($state, 'de'))->output();
+    (new UI($state, 'de', $frequency))->output();
     file_put_contents(__DIR__ . '/public/index.html', ob_get_clean(), LOCK_EX);
 
     if (!is_dir(__DIR__ . '/public/en')) {
@@ -67,7 +77,7 @@ foreach ([
     }
 
     ob_start();
-    (new UI($state, 'en'))->output();
+    (new UI($state, 'en', $frequency))->output();
     file_put_contents(__DIR__ . '/public/en/index.html', ob_get_clean(), LOCK_EX);
 
     file_put_contents(

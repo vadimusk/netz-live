@@ -29,6 +29,9 @@ class I18n {
       'status.price'      => 'Preis',
       'status.emissions' => 'Emissionen',
 
+      'frequency.heading' => 'Netzfrequenz',
+      'frequency.area'    => 'Kontinentaleuropa',
+
       'equation.demand'     => 'Bedarf',
       'equation.generation' => 'Erzeugung',
       'equation.transfers'  => 'Austausch',
@@ -110,6 +113,9 @@ class I18n {
       'status.time'      => 'Time',
       'status.price'      => 'Price',
       'status.emissions' => 'Emissions',
+
+      'frequency.heading' => 'Grid frequency',
+      'frequency.area'    => 'Continental Europe',
 
       'equation.demand'     => 'Demand',
       'equation.generation' => 'Generation',

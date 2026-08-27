@@ -151,13 +151,43 @@ class Generation {
   /**
    * The production types that must be published before a quarter hour counts.
    *
-   * These carry all but a fraction of a percent of German generation and are
-   * published together. The rest — geothermal, other renewables, the odds and
-   * ends of conventional plant — run hours behind, and waiting for them would
-   * throw away the freshness this source exists for.
+   * The test is how fast a type moves, not how much of the mix it carries. A
+   * type left out of this list is still shown: its last known figure is
+   * carried forward and overwritten as soon as the real one arrives. So the
+   * only thing a type needs to earn a place here is that carrying it forward
+   * for a quarter hour would visibly misstate the mix.
+   *
+   * Measured over 2735 quarter hours, the mean change from one to the next:
+   *
+   *   solar          928 MW      hard coal       65 MW
+   *   wind onshore   269 MW      hydro           37 MW
+   *   pumped         234 MW      biomass         23 MW
+   *   lignite        106 MW      other conv.     13 MW
+   *   gas             99 MW
+   *   wind offshore   96 MW
+   *
+   * Hydro and biomass sit twenty-five and forty times below solar. Holding
+   * the whole page back until they arrive — which is what including them did,
+   * for fifteen minutes at a stretch — costs far more than carrying them
+   * forward, which is worth about 37 and 23 megawatts against the sixty
+   * gigawatts on the page.
    */
   private const CORE_TYPES = [
-    'B01', 'B02', 'B04', 'B05', 'B10', 'B11', 'B12', 'B16', 'B18', 'B19'
+    'B02', 'B04', 'B05', 'B10', 'B16', 'B18', 'B19'
+  ];
+
+  /**
+   * Names for the core types, used only to say which one is holding the
+   * newest quarter hour back.
+   */
+  private const CORE_NAMES = [
+    'B02' => 'lignite',
+    'B04' => 'gas',
+    'B05' => 'hard coal',
+    'B10' => 'pumped storage',
+    'B16' => 'solar',
+    'B18' => 'wind offshore',
+    'B19' => 'wind onshore'
   ];
 
   /** The production type reported as consumption for pumped storage. */
@@ -245,6 +275,8 @@ class Generation {
     $times = self::coveredTimes($read['generation'], self::CORE_TYPES);
     $data  = [];
 
+    self::reportConstraint($read['generation']);
+
     foreach (self::GENERATION_TYPES as $column => $codes) {
       self::carryForward(
         $data,
@@ -305,6 +337,58 @@ class Generation {
     );
 
     return self::complete($data, self::GENERATION_COLUMNS);
+  }
+
+  /**
+   * Notes in the update log which core type is holding the newest quarter
+   * hour back, when one of them is behind the others.
+   *
+   * A stalled source and a healthy one both print OK on every other line, and
+   * working out which type was the constraint otherwise means querying the
+   * platform by hand. One line here answers it, and stays silent on the runs
+   * where nothing is being held back.
+   *
+   * @param array<string,array<string,float>> $series The series by type
+   */
+  private static function reportConstraint(array $series): void {
+    $ends = [];
+
+    foreach (self::CORE_TYPES as $code) {
+      if (count($series[$code] ?? []) !== 0) {
+        $ends[$code] = max(array_keys($series[$code]));
+      }
+    }
+
+    if (count($ends) !== count(self::CORE_TYPES)) {
+      echo '(missing: '
+        . implode(', ', array_map(
+          fn ($code) => self::CORE_NAMES[$code],
+          array_diff(self::CORE_TYPES, array_keys($ends))
+        ))
+        . ') ';
+
+      return;
+    }
+
+    $earliest = min($ends);
+    $laggards = array_keys($ends, $earliest);
+
+    // where most of the core ends together, that is simply the edge of what
+    // the platform has published, and saying so on every run would bury the
+    // case worth seeing: one or two series behind the rest, holding back
+    // quarter hours the others already cover
+    if (count($laggards) * 2 >= count(self::CORE_TYPES)) {
+      return;
+    }
+
+    echo '(held at '
+      . substr(trim($earliest, '"'), 11, 5)
+      . ' by '
+      . implode(', ', array_map(
+        fn ($code) => self::CORE_NAMES[$code],
+        $laggards
+      ))
+      . ') ';
   }
 
   /**

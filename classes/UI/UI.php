@@ -2,6 +2,7 @@
 
 namespace KateMorley\Grid\UI;
 
+use KateMorley\Grid\Data\Frequency as FrequencyReading;
 use KateMorley\Grid\State\State;
 
 /** Functions for outputting the user interface. */
@@ -39,13 +40,21 @@ class UI {
   /** The graphs. */
   private Graphs $graphs;
 
+  /** The grid frequency, or null where it could not be read. */
+  private ?FrequencyReading $frequency;
+
   /**
    * Constructs a new instance.
    *
    * @param State  $state  The state
    * @param string $locale The locale ('de' or 'en')
    */
-  public function __construct(State $state, string $locale) {
+  public function __construct(
+    State $state,
+    string $locale,
+    ?FrequencyReading $frequency = null
+  ) {
+    $this->frequency = $frequency;
     $this->state  = $state;
     $this->locale = $locale;
     $this->graphs = new Graphs($state);
@@ -143,6 +152,7 @@ class UI {
         </div>
         <?php PieChart::output($this->state->latest->sources, $locale); ?>
       </div>
+<?php if ($this->frequency !== null) { Frequency::output($this->frequency, $locale, true); } ?>
 <?php $this->historical(); ?>
     </main>
     <footer>
