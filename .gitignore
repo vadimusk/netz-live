@@ -5,3 +5,8 @@
 /public/sitemap.xml
 /public/google*.html
 .DS_Store
+
+# Agent instructions are kept local, never committed: they reference the
+# server (address, paths) and this is a public repository.
+AGENTS.md
+CLAUDE.md
