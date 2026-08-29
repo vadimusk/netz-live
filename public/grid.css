@@ -39,6 +39,7 @@
   --graph-highlight: #0001;
   --key-line: #999;
   --table-stripe: #f8f8f8;
+  --stale: #b0640a;
 }
 
 @media screen and (min-width:840px) {
@@ -92,6 +93,7 @@
     --graph-line: #2a2a2a;
     --graph-highlight: #fff1;
     --key-line: #666;
+    --stale: #e0a24a;
     --unit-opacity: 0.6;
     --table-stripe: #181818;
   }
@@ -431,6 +433,24 @@ dl {
       color: var(--content-text);
       font-weight: 300;
       opacity: var(--unit-opacity);
+    }
+
+    /* How old the newest data is, shown under the time. Muted while the lag is
+       ordinary; when it grows past the stale threshold it takes the warning
+       colour so a two-hour delay reads as a delay rather than a live figure. */
+    .age {
+      display: block;
+      margin-top: 0.45em;
+      font-size: 0.6em;
+      font-weight: 300;
+      white-space: nowrap;
+      opacity: var(--unit-opacity);
+
+      &.stale {
+        font-weight: 400;
+        color: var(--stale);
+        opacity: 1;
+      }
     }
   }
 

@@ -218,6 +218,30 @@ class I18n {
   }
 
   /**
+   * Formats an age, in seconds, as a short relative phrase (e.g. "vor 40 Min."
+   * / "40 min ago", or "vor 2 Std. 20 Min." / "2 hr 20 min ago"), for showing
+   * beside the time how old the newest data is.
+   *
+   * @param int    $seconds The age in seconds
+   * @param string $locale  The locale ('de' or 'en')
+   */
+  public static function age(int $seconds, string $locale): string {
+    $minutes = max(1, (int)round($seconds / 60));
+    $hours   = intdiv($minutes, 60);
+    $rest    = $minutes % 60;
+
+    if ($locale === 'de') {
+      return $hours === 0
+        ? 'vor ' . $minutes . ' Min.'
+        : 'vor ' . $hours . ' Std.' . ($rest !== 0 ? ' ' . $rest . ' Min.' : '');
+    }
+
+    return $hours === 0
+      ? $minutes . ' min ago'
+      : $hours . ' hr' . ($rest !== 0 ? ' ' . $rest . ' min' : '') . ' ago';
+  }
+
+  /**
    * Formats a number using locale-appropriate separators.
    *
    * @param float  $value         The value

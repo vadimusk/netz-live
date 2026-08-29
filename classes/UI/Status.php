@@ -7,23 +7,34 @@ use KateMorley\Grid\State\Datum;
 /** Outputs the status. */
 class Status {
   /**
+   * The age, in seconds, beyond which the newest data is shown as stale rather
+   * than merely timestamped. Normal lag is around 35 minutes, so this sits well
+   * above that — an ordinary delay isn't flagged — and near the watchdog's own
+   * sense of the data not advancing, so the badge and the alert agree.
+   */
+  private const STALE_AFTER = 5400;
+
+  /**
    * Outputs the status.
    *
-   * @param Datum  $datum  The datum
-   * @param string $time   The time
-   * @param string $locale The locale ('de' or 'en')
-   * @param bool   $help   Whether to show the help
+   * @param Datum  $datum      The datum
+   * @param string $time       The time
+   * @param string $locale     The locale ('de' or 'en')
+   * @param bool   $help       Whether to show the help
+   * @param ?int   $ageSeconds The age of the data in seconds, shown beside the
+   *                           time on the live panel; null elsewhere
    */
   public static function output(
     Datum  $datum,
     string $time,
     string $locale,
-    bool   $help = false
+    bool   $help = false,
+    ?int   $ageSeconds = null
   ): void {
 ?>
           <dl>
             <dt><?= I18n::t('status.time', $locale) ?><?php if ($help) { ?> <span data-help="time"></span><?php } ?></dt>
-            <dd><?= $time ?></dd>
+            <dd><?= $time ?><?php if ($ageSeconds !== null) { ?><span class="age<?= $ageSeconds > self::STALE_AFTER ? ' stale' : '' ?>"><?= I18n::age($ageSeconds, $locale) ?></span><?php } ?></dd>
             <dt><?= I18n::t('status.price', $locale) ?><?php if ($help) { ?>  <span data-help="price"></span><?php } ?></dt>
             <dd><?= Value::formatPrice($datum->price, $locale) ?><abbr>/MWh</abbr></dd>
             <dt><?= I18n::t('status.emissions', $locale) ?><?php if ($help) { ?> <span data-help="emissions"></span><?php } ?></dt>

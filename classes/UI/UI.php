@@ -144,7 +144,7 @@ class UI {
     <main>
       <div id="live">
         <div>
-<?php Status::output($this->state->latest, Status::time($this->state->time, $locale), $locale, true); ?>
+<?php Status::output($this->state->latest, Status::time($this->state->time, $locale), $locale, true, time() - $this->state->time); ?>
 <?php Equation::output($this->state->latest->sources, $locale, true); ?>
         </div>
         <div class="sources">
