@@ -57,6 +57,23 @@ class Emissions {
   private const OFFSET = 1.046;
 
   /**
+   * The largest gap, in grams per kilowatt hour, allowed between an official
+   * figure and the one calculated from the same quarter hour's mix before the
+   * official one is treated as broken and the calculated figure kept instead.
+   *
+   * The calculated figure reproduces the official series to a mean error of 7
+   * and 99% of quarter hours within 20 (see FACTORS), so a legitimate official
+   * value never lands this far from it — even the still, dark evenings near 718
+   * are tracked closely. But the source occasionally emits a figure that has no
+   * relation to the mix at all: on 29 Aug 2026 it jumped from 125 to 622 while
+   * the generation stayed almost pure solar and wind. At five times the 99th
+   * percentile of the normal gap, this catches that without touching a real
+   * value. The check is stateless and rerun every update, so the moment the
+   * source serves a sane figure again it is written and stands.
+   */
+  private const IMPLAUSIBLE_DIVERGENCE = 100;
+
+  /**
    * The columns making up the generation the intensity is measured against.
    *
    * Pumped storage is excluded, on both the generating and the consuming side,
@@ -103,12 +120,23 @@ class Emissions {
       $database->updateExisting(self::KEYS, array_values($official));
     }
 
-    $database->updateComputedEmissions(
+    $discarded = $database->updateComputedEmissions(
       self::FACTORS,
       self::DENOMINATOR,
       self::OFFSET,
-      count($official) === 0 ? null : max(array_keys($official))
+      count($official) === 0 ? null : max(array_keys($official)),
+      self::IMPLAUSIBLE_DIVERGENCE
     );
+
+    // the calculated figure has replaced an official one that bore no relation
+    // to the mix; say so, the way the generation step reports a fallback
+    if ($discarded !== 0) {
+      echo '(discarded '
+        . $discarded
+        . ' implausible official value'
+        . ($discarded === 1 ? '' : 's')
+        . ') ';
+    }
 
     if ($failure !== null) {
       throw $failure;

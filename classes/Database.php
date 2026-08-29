@@ -318,13 +318,21 @@ class Database {
    * @param ?string           $after       The latest quarter hour the official
    *                                        figures cover, quoted for SQL, or
    *                                        null if none were read at all
+   * @param int               $threshold   The largest gap allowed between an
+   *                                        official figure and the calculated
+   *                                        one before the official one is
+   *                                        discarded as broken; 0 disables the
+   *                                        check
+   *
+   * @return int The number of official figures discarded as implausible
    */
   public function updateComputedEmissions(
     array   $factors,
     array   $denominator,
     float   $offset,
-    ?string $after
-  ): void {
+    ?string $after,
+    int     $threshold = 0
+  ): int {
     $total = implode('+', $denominator);
 
     $emissions = implode('+', array_map(
@@ -333,16 +341,31 @@ class Database {
       $factors
     ));
 
+    $calculated = 'ROUND((' . $emissions . '+' . $offset . ')/(' . $total . '))';
+
+    // an official figure that disagrees with the mix by more than the
+    // threshold is not a late figure but a broken one, so it is recalculated
+    // alongside the quarter hours no official figure has reached. The check
+    // only runs where official figures were read (a null $after means the
+    // source was unreachable, and its earlier figures are the good ones), and
+    // is stateless: the moment the source serves a sane figure it is written
+    // by updateExisting and passes this, so the calculated stand-in gives way.
+    $guard = $after !== null && $threshold > 0
+      ? 'time<=' . $after . ' AND ABS(emissions-' . $calculated . ')>' . $threshold
+      : null;
+
+    $discarded = 0;
+
+    if ($guard !== null) {
+      $discarded = (int)$this->connection->query(
+        'SELECT COUNT(*) FROM past_quarter_hours'
+        . ' WHERE (' . $total . ')>0 AND (' . $guard . ')'
+      )->fetch_row()[0];
+    }
+
     $this->connection->query(
-      'UPDATE past_quarter_hours SET emissions=ROUND(('
-      . $emissions
-      . '+'
-      . $offset
-      . ')/('
-      . $total
-      . ')) WHERE ('
-      . $total
-      . ')>0'
+      'UPDATE past_quarter_hours SET emissions=' . $calculated
+      . ' WHERE (' . $total . ')>0 AND ('
       // quarter hours the official figures already cover are left alone, but
       // any they skipped are filled in: a new database starts with a few of
       // them, since the generation reaches back slightly further.
@@ -352,9 +375,14 @@ class Database {
       // official figures already held with calculated ones would throw away
       // the better number for as long as the outage lasted.
       . ($after === null
-        ? ' AND emissions=0'
-        : ' AND (time>' . $after . ' OR emissions=0)')
+        ? 'emissions=0'
+        : '(time>' . $after . ' OR emissions=0)')
+      // …except an official figure that cannot be reconciled with the mix
+      . ($guard !== null ? ' OR (' . $guard . ')' : '')
+      . ')'
     );
+
+    return $discarded;
   }
 
   /**
