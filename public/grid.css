@@ -255,6 +255,15 @@ path {
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
+
+  /* The quarter hours that have happened but haven't been published yet are
+     estimated, and drawn dashed so they read as an estimate at a glance. The
+     dashes are in user units rather than scaled with the graph, matching the
+     non-scaling stroke, so they stay the same size on every screen. */
+  &.predicted {
+    stroke-dasharray: 3 3;
+    vector-effect: non-scaling-stroke;
+  }
 }
 
 #live {
@@ -457,6 +466,19 @@ dl {
         color: var(--stale);
         opacity: 1;
       }
+    }
+
+    /* The estimate for the quarter hour running now. It sits under the
+       confirmed figure rather than replacing it: the measured number stays
+       exactly where it was, and this is plainly a second, softer number. */
+    .estimate {
+      display: block;
+      margin-top: 0.45em;
+      font-size: 0.6em;
+      font-weight: 300;
+      white-space: nowrap;
+      color: var(--content-text);
+      opacity: var(--unit-opacity);
     }
   }
 

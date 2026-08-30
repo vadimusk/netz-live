@@ -6,6 +6,7 @@ use KateMorley\Grid\Database;
 use KateMorley\Grid\Environment;
 use KateMorley\Grid\Data\DataException;
 use KateMorley\Grid\Data\Emissions;
+use KateMorley\Grid\Data\Forecast;
 use KateMorley\Grid\Data\Frequency;
 use KateMorley\Grid\Data\Generation;
 use KateMorley\Grid\Data\Pricing;
@@ -49,6 +50,13 @@ foreach ([
 
   'Updating pricing…    ' => function (Database $database) {
     Pricing::update($database);
+  },
+
+  // read after the measured data, and isolated like every other step: the
+  // forecast only fills the gap between the newest confirmed quarter hour and
+  // now, so losing it costs the dashed tail and nothing else
+  'Updating forecast…   ' => function (Database $database) {
+    Forecast::update($database);
   },
 
   'Updating visits…     ' => function (Database $database) {

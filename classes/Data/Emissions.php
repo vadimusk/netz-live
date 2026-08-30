@@ -144,6 +144,37 @@ class Emissions {
   }
 
   /**
+   * Calculates the carbon intensity of a generation mix, in grams of CO2
+   * equivalent per kilowatt hour.
+   *
+   * This mirrors the SQL in Database::updateComputedEmissions, and the two
+   * must agree: that one fills in the quarter hours the official figures
+   * haven't reached, while this one is used for quarter hours that have no
+   * measured mix at all, where the mix itself is predicted.
+   *
+   * @param array<string,mixed> $map A map from column to value
+   */
+  public static function calculate(array $map): float {
+    $total = 0;
+
+    foreach (self::DENOMINATOR as $column) {
+      $total += (float)($map[$column] ?? 0);
+    }
+
+    if ($total <= 0) {
+      return 0;
+    }
+
+    $emissions = self::OFFSET;
+
+    foreach (self::FACTORS as $column => $factor) {
+      $emissions += $factor * (float)($map[$column] ?? 0);
+    }
+
+    return round($emissions / $total);
+  }
+
+  /**
    * Reads the official emissions data, returning an array mapping normalised
    * times to rows.
    *

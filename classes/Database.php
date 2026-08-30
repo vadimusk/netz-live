@@ -3,10 +3,12 @@
 namespace KateMorley\Grid;
 
 use KateMorley\Grid\Data\Emissions;
+use KateMorley\Grid\Data\Forecast;
 use KateMorley\Grid\Data\Generation;
 use KateMorley\Grid\Data\Pricing;
 use KateMorley\Grid\Data\Visits;
 use KateMorley\Grid\State\Datum;
+use KateMorley\Grid\State\Prediction;
 use KateMorley\Grid\State\Record;
 use KateMorley\Grid\State\State;
 
@@ -34,11 +36,17 @@ class Database {
 
   /** Returns the latest state. */
   public function getState(): State {
-    list($time, $latest) = $this->getLatest();
+    list($time, $latest, $latestMap) = $this->getLatest();
 
     return new State(
       $time,
       $latest,
+      Prediction::build(
+        $time,
+        $latestMap,
+        $this->getForecasts(Forecast::KEYS),
+        time()
+      ),
       $this->getPastPeriod(self::PAST_DAY),
       $this->getPastPeriod(self::PAST_WEEK),
       $this->getPastPeriod(self::PAST_YEAR),
@@ -86,7 +94,8 @@ class Database {
 
     return [
       strtotime($map['time'] . ' UTC'),
-      new Datum($map)
+      new Datum($map),
+      $map
     ];
   }
 
@@ -489,6 +498,73 @@ class Database {
     // quarter hours hold. The historic import writes years of them in one go,
     // and deleting first would throw that away before it had been rolled up.
     $this->deleteOldQuarterHours();
+    $this->deleteOldForecasts();
+  }
+
+  /**
+   * Writes forecast quarter hours.
+   *
+   * Forecasts are revised as the weather models are rerun, so rows are
+   * replaced rather than inserted: the newest reading for a quarter hour is
+   * the only one worth keeping.
+   *
+   * @param array<string> $columns The columns
+   * @param array         $rows    The rows, each starting with a quoted time
+   */
+  public function updateForecasts(array $columns, array $rows): void {
+    foreach (array_chunk($rows, 200) as $chunk) {
+      $values = [];
+
+      foreach ($chunk as $row) {
+        $values[] = '(' . implode(',', $row) . ')';
+      }
+
+      $this->connection->query(
+        'REPLACE INTO forecast_quarter_hours (time,'
+        . implode(',', $columns)
+        . ') VALUES '
+        . implode(',', $values)
+      );
+    }
+  }
+
+  /**
+   * Returns the forecasts, as an array mapping times to an array mapping
+   * columns to values.
+   *
+   * @param array<string> $columns The columns
+   *
+   * @return array<int,array<string,float>>
+   */
+  public function getForecasts(array $columns): array {
+    $rows = $this->connection->query(
+      'SELECT time,'
+      . implode(',', $columns)
+      . ' FROM forecast_quarter_hours ORDER BY time ASC'
+    );
+
+    $forecasts = [];
+
+    while ($row = $rows->fetch_assoc()) {
+      $time = strtotime($row['time'] . ' UTC');
+
+      foreach ($columns as $column) {
+        $forecasts[$time][$column] = (float)$row[$column];
+      }
+    }
+
+    return $forecasts;
+  }
+
+  /**
+   * Deletes forecasts old enough that no prediction can still be anchored to
+   * them, keeping the table to a couple of days rather than growing forever.
+   */
+  private function deleteOldForecasts(): void {
+    $this->connection->query(
+      'DELETE FROM forecast_quarter_hours'
+      . ' WHERE time<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)'
+    );
   }
 
   /** Deletes old quarter-hourly data to reduce the size of the database. */

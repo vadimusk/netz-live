@@ -216,6 +216,48 @@ class Graphs {
   }
 
   /**
+   * Returns the predicted data drawn after a series.
+   *
+   * Only the past day carries a prediction, and only for the graphs the
+   * forecast actually informs: generation, the demand it is balanced against,
+   * and the carbon intensity computed from it. The price is settled a day ahead
+   * and needs no estimate, and the transfers graph is left out because its
+   * lines are per country: the prediction moves the borders only in total, so
+   * drawing them one by one would show a split nobody forecast.
+   *
+   * @param Graph  $graph  The graph
+   * @param Period $period The time period
+   *
+   * @return array<Datum>
+   */
+  private function predicted(Graph $graph, Period $period): array {
+    if (
+      $period !== Period::Day
+      || !in_array($graph, [Graph::Generation, Graph::Demand, Graph::Emissions], true)
+    ) {
+      return [];
+    }
+
+    return $this->state->predicted;
+  }
+
+  /**
+   * Returns every point a graph is drawn across, measured and predicted alike.
+   *
+   * The axis, the background and the width of the drawing area all follow this
+   * rather than the measured series, so that the dashed tail has somewhere to
+   * be drawn and can be read off like the rest of the line.
+   *
+   * @param Graph  $graph  The graph
+   * @param Period $period The time period
+   *
+   * @return array<Datum>
+   */
+  private function points(Graph $graph, Period $period): array {
+    return $this->series($graph, $period) + $this->predicted($graph, $period);
+  }
+
+  /**
    * Returns whether a graph has enough points to be worth drawing.
    *
    * Below a few points there is no shape to see, and for visits the sentence
@@ -257,11 +299,11 @@ class Graphs {
     $this->outputTimeAxis($graph, $period, $locale);
 
     echo '<svg viewBox="-0.5 -1 ';
-    echo count($this->series($graph, $period));
+    echo count($this->points($graph, $period));
     echo ' ';
     echo self::HEIGHT + 2;
     echo '" width="';
-    echo count($this->series($graph, $period));
+    echo count($this->points($graph, $period));
     echo '" height="';
     echo self::HEIGHT + 2;
     echo '" preserveAspectRatio="none">';
@@ -319,7 +361,7 @@ class Graphs {
 
     $index = ceil($period->tickmarkInterval() / 2);
 
-    foreach ($this->series($graph, $period) as $time => $_) {
+    foreach ($this->points($graph, $period) as $time => $_) {
       if ($index % $period->tickmarkInterval() === 0) {
         echo '<div>';
         echo $period->format($time, $locale);
@@ -346,7 +388,7 @@ class Graphs {
 
     $index = 0;
 
-    foreach ($this->series($graph, $period) as $time => $datum) {
+    foreach ($this->points($graph, $period) as $time => $datum) {
       echo '<rect x="';
       echo $index;
       echo '" y="0" width="1" height="1" data-time="';
@@ -389,7 +431,7 @@ class Graphs {
         echo '<rect class="';
         echo $class;
         echo '" x="0" y="-1" width="';
-        echo count($this->series($graph, $period));
+        echo count($this->points($graph, $period));
         echo '" height="';
 
         if ($minimumLevel === $minimum) {
@@ -411,7 +453,9 @@ class Graphs {
       $graph->classes()
     );
 
-    foreach ($this->series($graph, $period) as $datum) {
+    $series = $this->series($graph, $period);
+
+    foreach ($series as $datum) {
       foreach ($graph->get($datum) as $key => $value) {
         $lines[$key]->add($value);
       }
@@ -419,6 +463,33 @@ class Graphs {
 
     foreach ($graph->classes() as $index => $class) {
       $lines[$index]->output($class);
+    }
+
+    // The predicted quarter hours are drawn as their own dashed paths, laid
+    // end to end with the measured ones. Each starts from the last measured
+    // point rather than the first predicted one, so the two meet without a
+    // gap, and none of the measured line is redrawn or replaced.
+    $predicted = $this->predicted($graph, $period);
+
+    if (count($predicted) !== 0 && count($series) !== 0) {
+      $tails = array_map(
+        fn ($_) => new Line(self::HEIGHT, $minimum, $range),
+        $graph->classes()
+      );
+
+      foreach ($tails as $tail) {
+        $tail->startAt(count($series) - 1);
+      }
+
+      foreach (array_merge([end($series)], array_values($predicted)) as $datum) {
+        foreach ($graph->get($datum) as $key => $value) {
+          $tails[$key]->add($value);
+        }
+      }
+
+      foreach ($graph->classes() as $index => $class) {
+        $tails[$index]->output($class . ' predicted');
+      }
     }
 
     if ($levels !== null) {

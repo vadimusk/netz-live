@@ -9,6 +9,9 @@ class State {
    *
    * @param int           $time           The time of the latest data
    * @param Datum         $latest         The latest datum
+   * @param array<Datum>  $predicted      The quarter hours between the latest
+   *                                       confirmed data and now, estimated
+   *                                       rather than measured
    * @param Datum         $day            The past day's datum
    * @param Datum         $week           The past week's datum
    * @param Datum         $year           The past year's datum
@@ -27,6 +30,7 @@ class State {
   public function __construct(
     public readonly int    $time,
     public readonly Datum  $latest,
+    public readonly array  $predicted,
     public readonly Datum  $day,
     public readonly Datum  $week,
     public readonly Datum  $year,

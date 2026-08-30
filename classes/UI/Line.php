@@ -15,6 +15,15 @@ class Line {
   private int $lastY = 0;
 
   /**
+   * The x co-ordinate the line starts at.
+   *
+   * The predicted tail of a graph is drawn as its own path so that it can be
+   * dashed, and has to begin where the measured line ends rather than at the
+   * left-hand edge.
+   */
+  private int $startX = 0;
+
+  /**
    * Constructs a new instance.
    *
    * @param int   $height  The height of the graph
@@ -26,6 +35,15 @@ class Line {
     private float $minimum,
     private float $range
   ) {
+  }
+
+  /**
+   * Sets the x co-ordinate the line starts at.
+   *
+   * @param int $x The x co-ordinate
+   */
+  public function startAt(int $x): void {
+    $this->startX = $x;
   }
 
   /**
@@ -63,7 +81,9 @@ class Line {
       return;
     }
 
-    echo ' d="m0 ';
+    echo ' d="m';
+    echo $this->startX;
+    echo ' ';
     echo array_shift($this->offsets);
 
     while (count($this->offsets) > 0) {

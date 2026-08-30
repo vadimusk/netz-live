@@ -26,6 +26,7 @@ class I18n {
       'period.all.html' => 'Gesamt<span>er Zeitraum</span>',
 
       'status.time'      => 'Zeit',
+      'status.estimate'  => 'jetzt ≈ %s',
       'status.price'      => 'Preis',
       'status.emissions' => 'Emissionen',
 
@@ -111,6 +112,7 @@ class I18n {
       'period.all.html' => 'All<span> time</span>',
 
       'status.time'      => 'Time',
+      'status.estimate'  => 'now ≈ %s',
       'status.price'      => 'Price',
       'status.emissions' => 'Emissions',
 

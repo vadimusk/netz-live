@@ -10,3 +10,6 @@
 # server (address, paths) and this is a public repository.
 AGENTS.md
 CLAUDE.md
+
+# local render used for visual checks; never committed
+.preview/

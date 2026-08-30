@@ -133,6 +133,18 @@ CREATE TABLE `past_years` (
   PRIMARY KEY (`time`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Forecast generation for the weather-driven sources. Kept apart from the
+-- measured quarter hours so that a forecast can never overwrite a confirmed
+-- figure: the two are different kinds of number and only one of them is a
+-- record of what happened.
+CREATE TABLE `forecast_quarter_hours` (
+  `time` datetime NOT NULL,
+  `solar` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
+  `wind_onshore` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
+  `wind_offshore` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`time`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `wind_records` (
   `value` decimal(5,2) UNSIGNED NOT NULL,
   `time` datetime NOT NULL,

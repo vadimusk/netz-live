@@ -23,13 +23,17 @@ class Status {
    * @param bool   $help       Whether to show the help
    * @param ?int   $ageSeconds The age of the data in seconds, shown beside the
    *                           time on the live panel; null elsewhere
+   * @param ?Datum $predicted  The estimate for the quarter hour running now,
+   *                           shown under the confirmed figure it does not
+   *                           replace; null where there is nothing to estimate
    */
   public static function output(
     Datum  $datum,
     string $time,
     string $locale,
     bool   $help = false,
-    ?int   $ageSeconds = null
+    ?int   $ageSeconds = null,
+    ?Datum $predicted = null
   ): void {
 ?>
           <dl>
@@ -38,7 +42,7 @@ class Status {
             <dt><?= I18n::t('status.price', $locale) ?><?php if ($help) { ?>  <span data-help="price"></span><?php } ?></dt>
             <dd><?= Value::formatPrice($datum->price, $locale) ?><abbr>/MWh</abbr></dd>
             <dt><?= I18n::t('status.emissions', $locale) ?><?php if ($help) { ?> <span data-help="emissions"></span><?php } ?></dt>
-            <dd class="<?= Emissions::get((int)$datum->emissions)->class() ?>"><?= (int)$datum->emissions ?><abbr>g/kWh</abbr></dd>
+            <dd class="<?= Emissions::get((int)$datum->emissions)->class() ?>"><?= (int)$datum->emissions ?><abbr>g/kWh</abbr><?php if ($predicted !== null) { ?><span class="estimate"><?= I18n::t('status.estimate', $locale, [(int)$predicted->emissions]) ?></span><?php } ?></dd>
           </dl>
 <?php
   }
