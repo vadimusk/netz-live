@@ -19,11 +19,21 @@ class Latest {
     Sparklines $sparklines,
     string     $locale
   ): void {
+?>
+          <div class="generation-sources">
+<?php
     self::table($sources, $sparklines, Kind::Fossils, $locale);
     self::table($sources, $sparklines, Kind::Renewables, $locale);
     self::table($sources, $sparklines, Kind::Others, $locale);
+?>
+          </div>
+          <div class="flow-sources">
+<?php
     self::table($sources, $sparklines, Kind::Interconnectors, $locale);
     self::table($sources, $sparklines, Kind::Storage, $locale);
+?>
+          </div>
+<?php
   }
 
   /**
