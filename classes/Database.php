@@ -44,7 +44,7 @@ class Database {
       Prediction::build(
         $time,
         $latestMap,
-        $this->getForecasts(Forecast::KEYS),
+        $this->getForecasts(array_merge(Forecast::KEYS, [Forecast::LOAD])),
         time()
       ),
       $this->getPastPeriod(self::PAST_DAY),

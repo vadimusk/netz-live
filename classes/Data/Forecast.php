@@ -25,7 +25,27 @@ class Forecast {
     'wind_offshore'
   ];
 
+  /**
+   * The demand forecast, read from the day-ahead endpoint and stored beside
+   * the generation ones.
+   *
+   * It is a day-ahead product and so does not sharpen as the hour approaches:
+   * measured against what the grid actually drew, it sits at about 2.4GW
+   * whatever the delay. Holding the last confirmed demand beats it while the
+   * source is less than about an hour and a half behind, and loses badly past
+   * that — 9GW against 2.3GW at six hours — which is exactly the stretch the
+   * estimate is drawn over during an outage.
+   */
+  public const LOAD = 'load';
+
   private const URL = 'https://api.energy-charts.info/public_power_forecast';
+
+  /**
+   * The version two endpoint, the only one carrying a demand forecast. It
+   * answers in a different shape — rows of an ISO timestamp and a values
+   * object rather than parallel arrays — so it is parsed separately.
+   */
+  private const URL_LOAD = 'https://api.energy-charts.info/v2/public_power_forecast';
 
   /**
    * The window read, in seconds either side of now.
@@ -65,6 +85,16 @@ class Forecast {
       }
     }
 
+    // the demand forecast is optional: without it the prediction falls back to
+    // holding the last confirmed demand, which is what it did before
+    $load = [];
+
+    try {
+      $load = self::readLoad();
+    } catch (DataException $e) {
+      $load = [];
+    }
+
     // only quarter hours every series reaches are written, for the same
     // reason: a row is a mix, and a mix missing one of its parts is wrong
     // rather than incomplete
@@ -89,10 +119,63 @@ class Forecast {
         $row[] = $series[$type][$time];
       }
 
+      $row[] = $load[$time] ?? 0;
       $rows[] = $row;
     }
 
-    $database->updateForecasts(self::KEYS, $rows);
+    $database->updateForecasts(
+      array_merge(self::KEYS, [self::LOAD]),
+      $rows
+    );
+  }
+
+  /**
+   * Reads the day-ahead demand forecast, returning an array mapping normalised
+   * times to values in gigawatts.
+   *
+   * @return array<string,float>
+   *
+   * @throws DataException If the data was invalid
+   */
+  private static function readLoad(): array {
+    $rawData = @file_get_contents(
+      self::URL_LOAD . '?country=de&forecast_type=day-ahead&production_type=load'
+    );
+
+    if ($rawData === false) {
+      throw new DataException('Failed to read load');
+    }
+
+    $jsonData = json_decode($rawData, true);
+
+    if (!is_array($jsonData) || !isset($jsonData['data']) || !is_array($jsonData['data'])) {
+      throw new DataException('Missing load data');
+    }
+
+    $values = [];
+
+    foreach ($jsonData['data'] as $row) {
+      if (!is_array($row) || !isset($row['timestamp']) || !isset($row['values'])) {
+        continue;
+      }
+
+      $value   = reset($row['values']);
+      $seconds = strtotime($row['timestamp']);
+
+      if ($value === null || (!is_int($value) && !is_float($value))
+        || $seconds === false || $seconds % 900 !== 0
+      ) {
+        continue;
+      }
+
+      $values[Time::normaliseUnix($seconds, 15)] = round($value / 1000, 3);
+    }
+
+    if (count($values) === 0) {
+      throw new DataException('No load values');
+    }
+
+    return $values;
   }
 
   /**

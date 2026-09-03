@@ -142,6 +142,8 @@ CREATE TABLE `forecast_quarter_hours` (
   `solar` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
   `wind_onshore` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
   `wind_offshore` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
+  -- the day-ahead demand forecast, zero where it could not be read
+  `load` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
   PRIMARY KEY (`time`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
