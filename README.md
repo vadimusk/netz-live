@@ -1,6 +1,6 @@
 # Stromnetz: Live / German Grid: Live
 
-This repository is a German fork of [National Grid: Live](https://grid.iamkate.com/) ([KateMorley/grid](https://github.com/KateMorley/grid)), a project by [Kate Morley](https://iamkate.com/). Same architecture and visual design, adapted to show the live status of **Germany's** electric power grid instead of Great Britain's: generation mix, price, and carbon intensity, updated every fifteen minutes. The site is bilingual, with German at `/` and English at `/en/`.
+This repository is a German fork of [National Grid: Live](https://grid.iamkate.com/) ([KateMorley/grid](https://github.com/KateMorley/grid)), a project by [Kate Morley](https://iamkate.com/). Same architecture and visual design, adapted to show the live status of **Germany's** electric power grid instead of Great Britain's: generation mix, price, carbon intensity and grid frequency, updated every fifteen minutes. The site is bilingual, with German at `/` and English at `/en/`.
 
 Live at [netz.vterskov.de](https://netz.vterskov.de/), rebuilt from the API every five minutes.
 
@@ -107,7 +107,7 @@ PHP classes can be found in the `classes` directory. The [Database](classes/Data
 
 The [Data](classes/Data) namespace contains classes for reading data from the various data sources, as documented further below.
 
-The [State](classes/State) namespace contains classes representing the data needed to output the user interface. The [State](classes/State/State.php) class is the overall container; an instance of this class is returned by the `getState()` method of a `Database` instance.
+The [State](classes/State) namespace contains classes representing the data needed to output the user interface. The [State](classes/State/State.php) class is the overall container; an instance of this class is returned by the `getState()` method of a `Database` instance. [Prediction](classes/State/Prediction.php) also lives here, estimating the quarter hours that have happened but have not yet been published.
 
 The [UI](classes/UI) namespace contains classes that output the user interface, including the [I18n](classes/UI/I18n.php) class, which holds the German/English translation strings and locale-aware number/date formatting. The [UI](classes/UI/UI.php) class has overall responsibility for outputting the HTML for a given locale, while the [Favicon](classes/UI/Favicon.php) class outputs the dynamically-updated favicon (shared between locales).
 
@@ -115,23 +115,35 @@ Unlike the original, which ingests data at mismatched 5-minute and 30-minute res
 
 ## Data sources
 
-### [SMARD](https://www.smard.de/)
+### [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/)
 
-The electricity market data platform of the [Bundesnetzagentur](https://www.bundesnetzagentur.de/), the German federal network regulator. It publishes at 15-minute resolution, and its own documentation puts its target at one hour after the fact.
+The platform the European transmission system operators publish to, and where Germany's four — 50Hertz, Amprion, TenneT and TransnetBW — file their figures first. Generation and cross-border flows are read from here by the [Entsoe](classes/Data/Entsoe.php) class, which needs an API token in `ENTSOE_API_TOKEN`.
 
-This fork originally read the same figures from the Energy-Charts API, which republishes them but does so around three hours later. Switching to the first-hand source cut the site's lag from over three and a half hours to around forty minutes; the values themselves are identical, having been checked series by series against Energy-Charts over a fortnight and agreeing to the last stored decimal.
+Reading the first-hand source rather than a republisher takes about half an hour off the age of the newest figure. Two details of the platform decide most of how that class is written:
 
-Each series lives in its own file, one per calendar week, at `chart_data/{id}/DE/{id}_DE_quarterhour_{monday}.json`, where `{monday}` is the millisecond timestamp of midnight German local time on the Monday starting the week. Requests need a browser user agent, and the files carry an `ETag` that conditional requests ignore, so caching gains nothing; the [Smard](classes/Data/Smard.php) class instead fetches the thirty-odd files it needs in parallel, which takes a second or two.
+- **The German control area is `10Y1001A1001A83F`, not the DE-LU bidding zone `10Y1001A1001A82H`**, which includes Luxembourg and so overstates the country by a couple of hundred megawatts. The bidding zone is the right domain for the price and the wrong one for generation.
+- **Points are curve type A03**, a variable-length block: a point appears only where the value changes and holds until the next one or until the period ends. That is right for a border whose flow has not moved all day, and wrong for wind and solar, where a period declaring one point across hours means the operators have not published yet. Weather-driven types are therefore held for at most four quarter hours before the reading is treated as absent.
 
-Values are reported as megawatt hours produced within the quarter hour, so multiplying by four gives megawatts.
+Read from here:
 
-- **Generation** — lignite, hard coal, gas, biomass, solar, wind onshore/offshore, hydro, pumped storage, and the remainders SMARD groups as other renewable and other conventional. Pumped storage consumption is reported under consumption rather than generation, as a positive figure, and is stored negated.
-- **Physical cross-border flows** with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland), each as a separate export and import series. Exports are positive and imports negative, both from Germany's point of view, so negating their sum gives the net import.
+- **Generation** — lignite, hard coal, gas, biomass, solar, wind onshore/offshore, hydro, pumped storage, and the remainders grouped as other renewable and other conventional. Pumped storage consumption is reported separately and stored negated.
+
+  A quarter hour is written only once every fast-moving type has reported. The ones that matter are decided by how quickly a source can move rather than how large it is — solar shifts around 928MW between quarter hours where hydro shifts 37 — so a mix missing solar is refused while one missing hydro is not. This is why gaps appear during an upstream outage instead of rows showing a collapse that never happened.
+- **Physical cross-border flows** with Germany's eleven interconnected neighbours (Austria, Belgium, Czech Republic, Denmark, France, Luxembourg, Netherlands, Norway, Poland, Sweden, Switzerland).
 
   Flows are used in preference to the scheduled commercial exchanges. Germany sits inside the Continental European synchronous grid, where power reaches a buyer along whichever lines carry it, so a sale to one neighbour can flow through another: measured over a day the two series agree on the country's overall balance to within a few hundred megawatts, but disagree per neighbour by a gigawatt or more, at times even in direction. Flows are what actually happened.
 
   They still trail the generation slightly, so they are written separately and the last known figures are carried forward over the quarter hours they don't reach, rather than holding the generation back.
-- **Day-ahead auction price** for the DE-LU bidding zone, licensed CC BY 4.0. Settled the day before, so it runs ahead of the generation rather than behind it.
+
+### [SMARD](https://www.smard.de/)
+
+The electricity market data platform of the [Bundesnetzagentur](https://www.bundesnetzagentur.de/), the German federal network regulator, and the **fallback** for generation and flows: when ENTSO-E cannot be reached, [Generation](classes/Data/Generation.php) reads the same figures from here and prints `(SMARD fallback: …)` into the update log.
+
+Being a republisher of ENTSO-E, it can never be fresher — measured over a calm night the two ran neck and neck, ENTSO-E ahead by a quarter hour at most — and during a platform outage both stall together, since they trace to the same submissions. The fallback earns its keep in the extremes rather than the average: on 27 August 2026 SMARD stalled five hours in the morning while ENTSO-E's API timed out through the afternoon, each covering the other.
+
+Each series lives in its own file, one per calendar week, at `chart_data/{id}/DE/{id}_DE_quarterhour_{monday}.json`, where `{monday}` is the millisecond timestamp of midnight German local time on the Monday starting the week. Requests need a browser user agent, and the files carry an `ETag` that conditional requests ignore, so caching gains nothing; the [Smard](classes/Data/Smard.php) class instead fetches the thirty-odd files it needs in parallel. Values are megawatt hours produced within the quarter hour, so multiplying by four gives megawatts.
+
+SMARD is also the source of the **day-ahead auction price** for the DE-LU bidding zone, licensed CC BY 4.0. Settled the day before, so it runs ahead of the generation rather than behind it.
 
 ### The historic archive
 
@@ -147,15 +159,23 @@ Carbon intensity is imported from Energy-Charts year by year, which reaches back
 
 ### [Energy-Charts](https://www.energy-charts.info/)
 
-Run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/). Only one figure is still read from here, because SMARD doesn't publish it:
+Run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/). Three things are read from here, none of which ENTSO-E or SMARD publishes in a usable form:
 
 - `/co2eq` — carbon intensity of German electricity generation
+- `/frequency` — grid frequency, at one-second resolution
+- `/public_power_forecast` — the wind and solar forecast
 
 It arrives around three hours after the fact, where the generation it describes is barely an hour old. Rather than show a stale figure beside a current mix, [Emissions](classes/Data/Emissions.php) fills the remaining quarter hours in from the generation mix itself, and the official figure overwrites the calculation as soon as it arrives.
 
-The emission factors were calibrated by fitting the official series against SMARD's mix over a fortnight, holding the renewables at zero and keeping each factor within the range its technology can plausibly take. The fitted values turn out to be direct combustion emissions rather than lifecycle ones, which is what the official series tracks: lignite at 1074 g/kWh and hard coal at 720 g/kWh sit where the literature puts them. Checked against 105 hours the fit had not seen, the calculation reproduces the official figure to a mean error of 7 g/kWh, with 99% of quarter hours within 20 g/kWh, against values ranging from 111 to 718.
+An official figure that disagrees with the one calculated from the same quarter hour's mix by more than 100 g/kWh is discarded as broken and the calculated one kept: the source occasionally emits a value with no relation to the generation it describes — on 29 August 2026 it jumped from 125 to 622 g/kWh while the mix stayed almost pure solar and wind. The check compares against the mix rather than an absolute ceiling, because a legitimate figure does reach 718 on a still, dark evening, and it is stateless, so a corrected figure is taken up on the next run.
 
-PHP classes: [Smard](classes/Data/Smard.php), [Generation](classes/Data/Generation.php), [Emissions](classes/Data/Emissions.php), [Pricing](classes/Data/Pricing.php)
+The emission factors were calibrated by fitting the official series against the mix over a fortnight, holding the renewables at zero and keeping each factor within the range its technology can plausibly take. The fitted values turn out to be direct combustion emissions rather than lifecycle ones, which is what the official series tracks: lignite at 1074 g/kWh and hard coal at 720 g/kWh sit where the literature puts them. Checked against 105 hours the fit had not seen, the calculation reproduces the official figure to a mean error of 7 g/kWh, with 99% of quarter hours within 20 g/kWh, against values ranging from 111 to 718.
+
+**Grid frequency** is the only figure on the page describing now rather than a finished quarter hour, and the only one never stored: averaging it into the quarter-hourly table would destroy the second-by-second movement that makes it worth showing. It is read fresh each run and kept just long enough to render, with a short-lived on-disk cache standing in for up to fifteen minutes when the endpoint rate-limits. It is also **not German** — the whole Continental European synchronous area turns in step, which is why the page says "Kontinentaleuropa".
+
+**The forecast** covers solar and both winds, and exists because the measured mix is always an hour or so behind: a quarter hour must end before the operators can report it. When the delay passes an hour, [Prediction](classes/State/Prediction.php) estimates the quarter hours that have happened but have not been published, drawn as a dashed line inside a band whose width is the error measured for that line at that reach. Two things about it are deliberate: the forecast supplies only the *change* since the last confirmed reading, which the measured values then anchor, since revisions mostly move a forecast's level rather than its shape; and the estimates are never written to the database, so no confirmed figure can be displaced by one.
+
+PHP classes: [Entsoe](classes/Data/Entsoe.php), [Smard](classes/Data/Smard.php), [Generation](classes/Data/Generation.php), [Emissions](classes/Data/Emissions.php), [Pricing](classes/Data/Pricing.php), [Forecast](classes/Data/Forecast.php), [Frequency](classes/Data/Frequency.php)
 
 Unlike the UK original, Germany doesn't need a separate "embedded generation" data source: the generation figures already cover the whole country including distributed solar and wind, so there's no `Demand.php` equivalent.
 
