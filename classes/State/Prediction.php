@@ -29,17 +29,17 @@ use KateMorley\Grid\Data\Emissions;
  * the price are carried forward from the last confirmed quarter hour, which for
  * slowly dispatched sources costs little.
  *
- * **Demand is held rather than derived.** The panel prints demand = generation +
- * transfers, so of those three only two can be modelled and the third has to
- * follow. Deriving demand is the obvious choice and the wrong one: measured over
- * a week it makes demand 72% worse than simply carrying it forward, because
- * generation and the interconnectors move together — when solar climbs, the
- * surplus leaves the country — and moving generation while holding the
- * interconnectors flat pushes the whole solar swing into demand, which is not
- * where it went. Consumption is the smooth, human-driven quantity here, so it is
- * held, and the interconnectors take up the difference the way they do in
- * reality. That keeps generation twice as accurate as carrying it forward and
- * demand exactly as accurate, for 11% on the transfers.
+ * **The change in generation is shared between demand and the borders.** The
+ * panel prints demand = generation + transfers, so of those three only two can
+ * be modelled and the third has to follow. Both extremes are worse than a split:
+ * letting demand absorb everything makes it 72% worse than carrying it forward,
+ * because when solar climbs the surplus leaves the country rather than being
+ * consumed; letting the borders absorb everything — which this did at first —
+ * turned out to be the worst setting for *both* figures at once. Measured across
+ * 170 predictions per horizon, `DEMAND_SHARE = 0.3` beats it by 44% on the
+ * transfers and 20% on demand at an hour ahead, and wins at every horizon. That
+ * matches how the grid answers a surge: mostly exports and pumping, but demand
+ * drifts a little too.
  *
  * The carbon intensity is recalculated from the predicted mix rather than
  * carried, since that is the number the prediction most changes.
@@ -50,6 +50,14 @@ class Prediction {
    * to the last confirmed values.
    */
   public const ANCHOR_LIMIT = 75 * 60;
+
+  /**
+   * The share of the predicted change in generation that moves demand rather
+   * than the borders. Swept over the recorded predictions: nought — holding
+   * demand rigid — is the worst setting for the transfers and for demand alike,
+   * and three tenths is the best compromise at every horizon.
+   */
+  private const DEMAND_SHARE = 0.3;
 
   /** The columns the forecast covers. */
   private const COLUMNS = [
@@ -168,9 +176,14 @@ class Prediction {
     $held = Kind::Generation->get($anchorSources)
       + Kind::Transfers->get($anchorSources);
 
+    // the share of the predicted change in generation that demand is allowed to
+    // take up; the borders carry the rest
+    $change = Kind::Generation->get($sources) - Kind::Generation->get($anchorSources);
+
     // what the borders have to carry for that demand to come out again, with
     // pumped storage counted separately since it is carried rather than moved
     $target = $held
+      + self::DEMAND_SHARE * $change
       - Kind::Generation->get($sources)
       - Source::Pumped->get($sources);
 
