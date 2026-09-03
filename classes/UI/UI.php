@@ -68,11 +68,6 @@ class UI {
     $locale       = $this->locale;
     $canonicalUrl = self::BASE_URL . ($locale === 'en' ? 'en/' : '');
 
-    // the newest predicted quarter hour stands for now; copied to a local
-    // first, because end() takes its argument by reference and a readonly
-    // property cannot be passed that way
-    $predicted = $this->state->predicted;
-    $estimate  = count($predicted) === 0 ? null : end($predicted);
 
     // the English page lives a directory down, so its shared assets, which
     // are all at the site root, are one level up
@@ -150,8 +145,8 @@ class UI {
     <main>
       <div id="live">
         <div>
-<?php Status::output($this->state->latest, Status::time($this->state->time, $locale), $locale, true, time() - $this->state->time, $estimate); ?>
-<?php Equation::output($this->state->latest->sources, $locale, true, $estimate?->sources); ?>
+<?php Status::output($this->state->latest, Status::time($this->state->time, $locale), $locale, true, time() - $this->state->time); ?>
+<?php Equation::output($this->state->latest->sources, $locale, true); ?>
         </div>
         <div class="sources">
 <?php Latest::output($this->state->latest->sources, new Sparklines($this->state->daySeries), $locale); ?>

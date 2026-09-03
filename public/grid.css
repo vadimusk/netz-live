@@ -264,6 +264,15 @@ path {
     stroke-dasharray: 3 3;
     vector-effect: non-scaling-stroke;
   }
+
+  /* The uncertainty around a predicted point, drawn as a fill in the line's
+     own colour rather than a stroke, so it reads as the same quantity seen
+     less precisely. It widens with every quarter hour it reaches ahead. */
+  &.band {
+    fill: currentColor;
+    fill-opacity: 0.18;
+    stroke: none;
+  }
 }
 
 #live {
@@ -466,19 +475,6 @@ dl {
         color: var(--stale);
         opacity: 1;
       }
-    }
-
-    /* The estimate for the quarter hour running now. It sits under the
-       confirmed figure rather than replacing it: the measured number stays
-       exactly where it was, and this is plainly a second, softer number. */
-    .estimate {
-      display: block;
-      margin-top: 0.45em;
-      font-size: 0.6em;
-      font-weight: 300;
-      white-space: nowrap;
-      color: var(--content-text);
-      opacity: var(--unit-opacity);
     }
   }
 

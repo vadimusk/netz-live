@@ -487,6 +487,38 @@ class Graphs {
         }
       }
 
+      // the band goes down first so the dashed line sits on top of it
+      $bands = [];
+
+      foreach ($graph->classes() as $index => $class) {
+        $band = new Band(self::HEIGHT, $minimum, $range, count($series) - 1);
+        $step = 0;
+
+        foreach (array_merge([end($series)], array_values($predicted)) as $datum) {
+          $width = $step === 0
+            ? 0.0
+            : Graph::uncertainty($class, $step);
+
+          // a line with no measured uncertainty gets no band rather than a
+          // guessed one
+          if ($width === null) {
+            $band = null;
+            break;
+          }
+
+          $band->add($graph->get($datum)[$index], $width);
+          $step ++;
+        }
+
+        if ($band !== null) {
+          $bands[$index] = $band;
+        }
+      }
+
+      foreach ($bands as $index => $band) {
+        $band->output($graph->classes()[$index]);
+      }
+
       foreach ($graph->classes() as $index => $class) {
         $tails[$index]->output($class . ' predicted');
       }
