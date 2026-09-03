@@ -27,7 +27,8 @@ class Forecast {
 
   /**
    * The demand forecast, read from the day-ahead endpoint and stored beside
-   * the generation ones.
+   * the generation ones. Named `demand` rather than `load` because `load` is
+   * reserved in MariaDB and every statement naming it would need quoting.
    *
    * It is a day-ahead product and so does not sharpen as the hour approaches:
    * measured against what the grid actually drew, it sits at about 2.4GW
@@ -36,7 +37,7 @@ class Forecast {
    * that — 9GW against 2.3GW at six hours — which is exactly the stretch the
    * estimate is drawn over during an outage.
    */
-  public const LOAD = 'load';
+  public const LOAD = 'demand';
 
   private const URL = 'https://api.energy-charts.info/public_power_forecast';
 
