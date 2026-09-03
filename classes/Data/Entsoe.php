@@ -44,6 +44,26 @@ class Entsoe {
   /** The largest window a single request will return before timing out. */
   private const MAXIMUM_DAYS = 31;
 
+  /**
+   * Production types whose value may not be held forward indefinitely, and how
+   * many steps they may be held for.
+   *
+   * Curve type A03 means a point holds until the next one or until the period
+   * ends, which is right for a border whose flow genuinely has not changed. It
+   * is wrong for weather-driven generation: there, a period declaring a single
+   * point across hours means the operators have not published yet, not that
+   * the wind held to the watt. On 3 Sep 2026 that wrote onshore wind as exactly
+   * 10.22 GW for eleven consecutive quarter hours, which the core-type check
+   * then waved through because a value was present, and which the platform
+   * later withdrew. Measured over four weeks a genuine run of identical values
+   * lasts two quarter hours; four is comfortably clear of that.
+   */
+  private const HOLD_LIMIT = [
+    'B16' => 4,
+    'B18' => 4,
+    'B19' => 4
+  ];
+
   /** The resolutions the platform publishes, in minutes. */
   private const RESOLUTIONS = [
     'PT15M' => 15,
@@ -442,13 +462,25 @@ class Entsoe {
         // every quarter hour but the first.
         $steps = intdiv($until - $origin, $step * 60);
         $last  = null;
+        $held  = 0;
+        $limit = self::HOLD_LIMIT[$type] ?? PHP_INT_MAX;
 
         for ($index = 1; $index <= $steps; $index ++) {
           if (isset($points[$index])) {
             $last = $points[$index];
+            $held = 0;
+          } else {
+            $held ++;
           }
 
           if ($last === null) {
+            continue;
+          }
+
+          // past the limit the value is a placeholder rather than a reading,
+          // so the quarter hour is left absent and the core-type check can see
+          // that the mix is incomplete
+          if ($held >= $limit) {
             continue;
           }
 
