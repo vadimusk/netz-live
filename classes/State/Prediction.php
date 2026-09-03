@@ -46,6 +46,19 @@ use KateMorley\Grid\Data\Emissions;
  */
 class Prediction {
   /**
+   * The gap below which nothing is predicted at all.
+   *
+   * The estimate exists to cover a stretch that has happened and has not been
+   * published. When the source is keeping up, that stretch is three or four
+   * quarter hours — five per cent of the day graph, too little to read and
+   * enough to clutter the end of every line. So it stays out of the way until
+   * the source actually falls behind, and grows with the delay: on the day the
+   * platform stalled thirteen hours it would have covered half the graph,
+   * which is exactly when it is worth having.
+   */
+  public const MINIMUM_LAG = 60 * 60;
+
+  /**
    * The gap beyond which the forecast is used as it comes rather than anchored
    * to the last confirmed values.
    */
@@ -109,6 +122,11 @@ class Prediction {
     $latest = intdiv($now, 900) * 900;
 
     if ($time <= 0 || $latest <= $time || count($forecasts) === 0) {
+      return [];
+    }
+
+    // nothing to say while the source is keeping up
+    if ($now - $time <= self::MINIMUM_LAG) {
       return [];
     }
 
