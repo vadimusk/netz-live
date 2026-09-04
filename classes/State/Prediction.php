@@ -46,17 +46,19 @@ use KateMorley\Grid\Data\Emissions;
  */
 class Prediction {
   /**
-   * The gap below which nothing is predicted at all.
+   * The gap below which the estimate is drawn as a dashed line alone, without
+   * the band around it.
    *
-   * The estimate exists to cover a stretch that has happened and has not been
-   * published. When the source is keeping up, that stretch is three or four
-   * quarter hours — five per cent of the day graph, too little to read and
-   * enough to clutter the end of every line. So it stays out of the way until
-   * the source actually falls behind, and grows with the delay: on the day the
-   * platform stalled thirteen hours it would have covered half the graph,
-   * which is exactly when it is worth having.
+   * The dashed line always runs: the stretch it covers has happened and has
+   * not been published, and saying so costs nothing. The band is the part
+   * that needs a reason. When the source is keeping up, the estimate is three
+   * or four quarter hours and the band around it is a few pixels wide — a
+   * smudge at the end of every line, carrying no reading anybody could take.
+   * It appears once the source actually falls behind, and grows with the
+   * delay: on the day the platform stalled thirteen hours it covered half the
+   * graph, which is exactly when its width is worth showing.
    */
-  public const MINIMUM_LAG = 60 * 60;
+  public const BAND_LAG = 60 * 60;
 
   /**
    * The gap beyond which the forecast is used as it comes rather than anchored
@@ -125,11 +127,6 @@ class Prediction {
       return [];
     }
 
-    // nothing to say while the source is keeping up
-    if ($now - $time <= self::MINIMUM_LAG) {
-      return [];
-    }
-
     $anchored = ($now - $time) < self::ANCHOR_LIMIT;
 
     // anchoring measures the forecast against the confirmed quarter hour, so
@@ -170,6 +167,18 @@ class Prediction {
     }
 
     return $predicted;
+  }
+
+  /**
+   * Returns whether the estimate is drawn with a band around it, which it is
+   * only once the source has fallen far enough behind for the width to mean
+   * something.
+   *
+   * @param int $time The time of the newest confirmed quarter hour
+   * @param int $now  The current time
+   */
+  public static function banded(int $time, int $now): bool {
+    return $now - $time > self::BAND_LAG;
   }
 
   /**

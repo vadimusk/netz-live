@@ -47,6 +47,7 @@ class Database {
         $this->getForecasts(array_merge(Forecast::KEYS, [Forecast::LOAD])),
         time()
       ),
+      Prediction::banded($time, time()),
       $this->getPastPeriod(self::PAST_DAY),
       $this->getPastPeriod(self::PAST_WEEK),
       $this->getPastPeriod(self::PAST_YEAR),

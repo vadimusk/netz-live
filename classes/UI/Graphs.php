@@ -487,10 +487,13 @@ class Graphs {
         }
       }
 
-      // the band goes down first so the dashed line sits on top of it
-      $bands = [];
+      // the band goes down first so the dashed line sits on top of it. It is
+      // drawn only once the source is far enough behind for its width to say
+      // something; nearer than that the dashed line runs on its own.
+      $bands   = [];
+      $classes = $this->state->banded ? $graph->classes() : [];
 
-      foreach ($graph->classes() as $index => $class) {
+      foreach ($classes as $index => $class) {
         $band = new Band(self::HEIGHT, $minimum, $range, count($series) - 1);
         $step = 0;
 

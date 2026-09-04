@@ -12,6 +12,11 @@ class State {
    * @param array<Datum>  $predicted      The quarter hours between the latest
    *                                       confirmed data and now, estimated
    *                                       rather than measured
+   * @param bool          $banded         Whether the estimate is drawn with a
+   *                                       band around it, which it is only
+   *                                       once the source has fallen far
+   *                                       enough behind for its width to be
+   *                                       worth reading
    * @param Datum         $day            The past day's datum
    * @param Datum         $week           The past week's datum
    * @param Datum         $year           The past year's datum
@@ -31,6 +36,7 @@ class State {
     public readonly int    $time,
     public readonly Datum  $latest,
     public readonly array  $predicted,
+    public readonly bool   $banded,
     public readonly Datum  $day,
     public readonly Datum  $week,
     public readonly Datum  $year,
