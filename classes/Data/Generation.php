@@ -180,6 +180,31 @@ class Generation {
    * Names for the core types, used only to say which one is holding the
    * newest quarter hour back.
    */
+  /**
+   * Where and how far below the horizon the sun must be for an unpublished
+   * solar reading to be taken as the zero it is.
+   *
+   * Solar is a core type because losing it in daylight would understate the
+   * renewables badly, so a quarter hour without it is refused. After sunset it
+   * is zero, and the operators do not always publish that zero — on the night
+   * of 3 September they published wind, coal and gas through to midnight and
+   * no solar at all, holding the site eight hours behind for want of a number
+   * that could only have been nought.
+   *
+   * Darkness is computed rather than looked up, because the forecast that
+   * could have answered stalls in the same outages the measurements do: that
+   * night it stopped at the same hour. The sun does not.
+   *
+   * The position is Germany's north-western corner, near Flensburg, because
+   * that is where the sun sets last: if it is down there it is down over the
+   * whole country. Two degrees below the horizon is past sunset everywhere
+   * and well short of civil twilight, so nothing that could still be
+   * generating is ever written off as night.
+   */
+  private const DARKNESS_LATITUDE  = 55.1;
+  private const DARKNESS_LONGITUDE = 5.9;
+  private const DARKNESS_ELEVATION = -2.0;
+
   private const CORE_NAMES = [
     'B02' => 'lignite',
     'B04' => 'gas',
@@ -271,7 +296,10 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   private static function readGeneration(int $from): array {
-    $read  = Entsoe::readGeneration($from);
+    $read = Entsoe::readGeneration($from);
+
+    self::assumeDarkness($read['generation'], $from);
+
     $times = self::coveredTimes($read['generation'], self::CORE_TYPES);
     $data  = [];
 
@@ -403,6 +431,70 @@ class Generation {
    *
    * @return array<string>
    */
+  /**
+   * Fills in an unpublished solar reading as zero for the quarter hours the
+   * sun is below the horizon, so that a missing nought does not hold the rest
+   * of the mix back.
+   *
+   * Only ever writes a zero, and only where the sun cannot be shining: a
+   * quarter hour in daylight with no solar reading is refused exactly as
+   * before.
+   *
+   * @param array $generation The generation series, modified in place
+   * @param int   $from       The start of the period being read
+   */
+  private static function assumeDarkness(array &$generation, int $from): void {
+    $start = intdiv($from, 900) * 900;
+    $end   = intdiv(time(), 900) * 900;
+
+    for ($time = $start; $time <= $end; $time += 900) {
+      if (!self::isDark($time)) {
+        continue;
+      }
+
+      $key = '"' . gmdate('Y-m-d H:i:s', $time) . '"';
+
+      if (!isset($generation['B16'][$key])) {
+        $generation['B16'][$key] = 0.0;
+      }
+    }
+  }
+
+  /**
+   * Returns whether the sun is below DARKNESS_ELEVATION at the reference
+   * position, using the usual approximation of the solar position: good to a
+   * fraction of a degree, which against a two-degree margin is ample.
+   *
+   * @param int $time The Unix timestamp
+   */
+  private static function isDark(int $time): bool {
+    $day      = (int)gmdate('z', $time) + 1;
+    $fraction = 2 * M_PI / 365 * ($day - 1 + ((int)gmdate('G', $time) - 12) / 24);
+
+    // the equation of time, in minutes, and the declination, in radians
+    $equation = 229.18 * (0.000075
+      + 0.001868 * cos($fraction) - 0.032077 * sin($fraction)
+      - 0.014615 * cos(2 * $fraction) - 0.040849 * sin(2 * $fraction));
+
+    $declination = 0.006918
+      - 0.399912 * cos($fraction) + 0.070257 * sin($fraction)
+      - 0.006758 * cos(2 * $fraction) + 0.000907 * sin(2 * $fraction)
+      - 0.002697 * cos(3 * $fraction) + 0.001480 * sin(3 * $fraction);
+
+    $minutes = (int)gmdate('G', $time) * 60 + (int)gmdate('i', $time)
+      + $equation + 4 * self::DARKNESS_LONGITUDE;
+
+    $hourAngle = deg2rad($minutes / 4 - 180);
+    $latitude  = deg2rad(self::DARKNESS_LATITUDE);
+
+    $elevation = rad2deg(asin(
+      sin($latitude) * sin($declination)
+      + cos($latitude) * cos($declination) * cos($hourAngle)
+    ));
+
+    return $elevation < self::DARKNESS_ELEVATION;
+  }
+
   private static function coveredTimes(array $series, array $codes): array {
     $times = null;
 
