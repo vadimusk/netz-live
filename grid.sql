@@ -3,7 +3,7 @@ CREATE TABLE `errors` (
   `error` varchar(128) NOT NULL,
   `count` tinyint(3) UNSIGNED NOT NULL,
   PRIMARY KEY (`action`,`error`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `past_quarter_hours` (
   `time` datetime NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE `past_quarter_hours` (
   `emissions` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
   `visits` int(10) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`time`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `past_days` (
   `time` datetime NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE `past_days` (
   `emissions` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
   `visits` int(10) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`time`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `past_weeks` (
   `time` datetime NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE `past_weeks` (
   `emissions` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
   `visits` int(10) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`time`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `past_years` (
   `time` datetime NOT NULL,
@@ -131,7 +131,7 @@ CREATE TABLE `past_years` (
   `emissions` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
   `visits` int(10) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`time`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Forecast generation for the weather-driven sources. Kept apart from the
 -- measured quarter hours so that a forecast can never overwrite a confirmed
@@ -145,11 +145,11 @@ CREATE TABLE `forecast_quarter_hours` (
   -- the day-ahead demand forecast, zero where it could not be read
   `demand` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
   PRIMARY KEY (`time`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `wind_records` (
   `value` decimal(5,2) UNSIGNED NOT NULL,
   `time` datetime NOT NULL,
   PRIMARY KEY (`value`),
   KEY `time` (`time`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
