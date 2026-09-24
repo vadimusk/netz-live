@@ -142,7 +142,8 @@ CREATE TABLE `forecast_quarter_hours` (
   `solar` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
   `wind_onshore` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
   `wind_offshore` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
-  -- the day-ahead demand forecast, zero where it could not be read
+  -- the day-ahead demand forecast; rows written before it was required may
+  -- hold zero, which the prediction treats as missing
   `demand` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
   PRIMARY KEY (`time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

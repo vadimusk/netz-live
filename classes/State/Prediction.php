@@ -3,6 +3,7 @@
 namespace KateMorley\Grid\State;
 
 use KateMorley\Grid\Data\Emissions;
+use KateMorley\Grid\Data\Forecast;
 
 /**
  * Builds the quarter hours between the newest confirmed data and now.
@@ -12,37 +13,25 @@ use KateMorley\Grid\Data\Emissions;
  * happened but haven't been published: they are estimated rather than measured,
  * shown as a dashed line, and never written to the database.
  *
- * Two methods, chosen by how far behind the confirmed data is:
+ * Everything is anchored to the last confirmed quarter hour: its values set
+ * the level, and the day-ahead forecast supplies only the change since then.
+ * A forecast reading high or low keeps its shape without carrying its offset
+ * in, which is most of its error, and the dashed line starts where the solid
+ * one ends instead of jumping to the forecast's own level.
  *
- * - **Anchored** while the gap is under ANCHOR_LIMIT. The last confirmed values
- *   set the level and the forecast supplies only the change since then, so a
- *   forecast that is reading high or low keeps its shape without carrying its
- *   offset in. Measured over a week this beats the raw forecast by 30% for
- *   solar and 37% for offshore wind at 45 minutes.
- * - **The raw forecast** beyond it, because anchoring is only worth it while
- *   the forecast's error resembles the error it had at the anchor. That
- *   correlation runs 0.53 to 0.79 at an hour and falls through 0.5 at around
- *   ninety minutes, which is where anchoring stops paying and starts dragging
- *   a stale offset forward.
- *
- * Only the weather-driven sources are predicted. Coal, gas, biomass, hydro and
- * the price are carried forward from the last confirmed quarter hour, which for
- * slowly dispatched sources costs little.
- *
- * **The change in generation is shared between demand and the borders.** The
- * panel prints demand = generation + transfers, so of those three only two can
- * be modelled and the third has to follow. Both extremes are worse than a split:
- * letting demand absorb everything makes it 72% worse than carrying it forward,
- * because when solar climbs the surplus leaves the country rather than being
- * consumed; letting the borders absorb everything — which this did at first —
- * turned out to be the worst setting for *both* figures at once. Measured across
- * 170 predictions per horizon, `DEMAND_SHARE = 0.3` beats it by 44% on the
- * transfers and 20% on demand at an hour ahead, and wins at every horizon. That
- * matches how the grid answers a surge: mostly exports and pumping, but demand
- * drifts a little too.
- *
- * The carbon intensity is recalculated from the predicted mix rather than
- * carried, since that is the number the prediction most changes.
+ * - **Solar and wind** move by the forecast's change.
+ * - **Demand** moves by the demand forecast's change, weighted by season and
+ *   corrected for solar (see LOAD_WEIGHT). Over October 2025 to September 2026
+ *   that is 0.4GW out in the first half hour and 1.3GW three to six hours on,
+ *   where holding demand, as this used to, is 6 to 7GW out by then.
+ * - **Coal and gas** take FOSSIL_SHARE of whatever the demand asks for beyond
+ *   what solar and wind now give, since dispatchable plant is what answers a
+ *   change in demand; the rest of the mix is carried forward.
+ * - **The borders** take what is left, so that the equation the panel prints,
+ *   demand = generation + transfers, holds of every estimated quarter hour.
+ * - **The carbon intensity** is moved by how much the estimated mix changes
+ *   the calculated figure, rather than replaced by it: the official figure the
+ *   solid line shows can sit tens of grams from the calculated one.
  */
 class Prediction {
   /**
@@ -61,30 +50,64 @@ class Prediction {
   public const BAND_LAG = 60 * 60;
 
   /**
-   * The gap beyond which the forecast is used as it comes rather than anchored
-   * to the last confirmed values.
+   * The share of the change in demand, beyond what solar and wind cover, that
+   * coal and gas are moved to meet; the borders take the rest.
+   *
+   * Nought — holding coal and gas where they were — puts every gigawatt of a
+   * change in demand onto the borders, and was the worst setting for the
+   * transfers, the fossil lines and the carbon intensity alike. Swept over the
+   * year to September 2026, three tenths is best for the fossil lines and
+   * within three per cent of the best for the transfers, the generation as a
+   * whole and the carbon intensity.
    */
-  public const ANCHOR_LIMIT = 75 * 60;
+  private const FOSSIL_SHARE = 0.3;
 
   /**
-   * The share of the predicted change in generation that moves demand rather
-   * than the borders. Swept over the recorded predictions: nought — holding
-   * demand rigid — is the worst setting for the transfers and for demand alike,
-   * and three tenths is the best compromise at every horizon.
+   * How the demand forecast's change maps onto the demand the panel shows,
+   * which is the generation plus the transfers, and how that shifts with the
+   * season.
+   *
+   * The two are not the same quantity, and how they differ follows the sun.
+   * Taken as it comes, the forecast ran three and a half gigawatts high three
+   * to six hours on from a September midday, and as far low from an early
+   * morning — a shift, not noise. Fitted on September alone, the panel's
+   * demand moved by 0.85 of the forecast's change plus 0.12 of the solar
+   * forecast's; but tested on the rest of the year that fit did worse than the
+   * forecast untouched, 2.5GW out three to six hours on in March and April
+   * against 1.5GW. Fitted month by month, the weights drift smoothly with the
+   * season — the load weight from about 0.85 in high summer to 1.0 in winter,
+   * the solar term from a tenth to nothing — so each is a constant plus a
+   * multiple of season(), which is +1 in mid-July and -1 in mid-January.
+   *
+   * Fitted on alternate months from October 2025 to September 2026 and tested
+   * on the others, that is 1.31GW out three to six hours on, against 1.46GW
+   * for fixed weights and 1.54GW for the forecast as it comes; left out one
+   * month at a time, it wins ten months of the twelve. Fitted on the whole
+   * year, the values are these.
    */
-  private const DEMAND_SHARE = 0.3;
+  private const LOAD_WEIGHT  = 0.92;
+  private const LOAD_SEASON  = -0.07;
+  private const SOLAR_SEASON = 0.10;
 
-  /** The columns the forecast covers. */
+  /** The columns the generation forecast covers. */
   private const COLUMNS = [
     'solar',
     'wind_onshore',
     'wind_offshore'
   ];
 
+  /** The dispatchable columns moved to meet the demand. */
+  private const FOSSILS = [
+    'lignite',
+    'hard_coal',
+    'gas'
+  ];
+
   /**
-   * The columns that take up the difference between predicted generation and
-   * held demand. Pumped storage is left out even though it counts among the
-   * transfers, because it answers to the price rather than to a surplus.
+   * The columns that take up the difference between the estimated generation
+   * and the estimated demand. Pumped storage is left out even though it counts
+   * among the transfers, because it answers to the price rather than to a
+   * surplus.
    */
   private const INTERCONNECTORS = [
     'austria',
@@ -123,22 +146,21 @@ class Prediction {
     // "now"; it is still running, so the forecast is all there is for it
     $latest = intdiv($now, 900) * 900;
 
-    if ($time <= 0 || $latest <= $time || count($forecasts) === 0) {
+    // everything is measured from the confirmed quarter hour, so without its
+    // forecast there is nothing to measure from
+    if ($time <= 0 || $latest <= $time || !self::usable($forecasts[$time] ?? null)) {
       return [];
     }
 
-    $anchored = ($now - $time) < self::ANCHOR_LIMIT;
-
-    // anchoring measures the forecast against the confirmed quarter hour, so
-    // without a forecast for that quarter hour there is nothing to measure
-    if ($anchored && !isset($forecasts[$time])) {
-      $anchored = false;
-    }
+    $anchorSources = (new Datum($map))->sources;
+    $demand        = Kind::Generation->get($anchorSources) + Kind::Transfers->get($anchorSources);
+    $calculated    = Emissions::calculate($map);
+    $season        = self::season($time);
 
     $predicted = [];
 
     for ($t = $time + 900; $t <= $latest; $t += 900) {
-      if (!isset($forecasts[$t])) {
+      if (!self::usable($forecasts[$t] ?? null)) {
         // the forecast has run out, and a gap in the middle of a line is worse
         // than a line that stops early
         break;
@@ -148,20 +170,26 @@ class Prediction {
       unset($row['time']);
 
       foreach (self::COLUMNS as $column) {
-        $value = $anchored
-          ? (float)($map[$column] ?? 0)
-            + $forecasts[$t][$column]
-            - $forecasts[$time][$column]
-          : $forecasts[$t][$column];
-
         // generation cannot be negative, and anchoring an overnight solar
         // forecast can otherwise push it slightly below zero
-        $row[$column] = max(0.0, round($value, 3));
+        $row[$column] = max(0.0, round(
+          (float)($map[$column] ?? 0) + $forecasts[$t][$column] - $forecasts[$time][$column],
+          3
+        ));
       }
 
-      $row['emissions'] = Emissions::calculate($row);
+      $target = $demand
+        + (self::LOAD_WEIGHT + self::LOAD_SEASON * $season)
+          * ($forecasts[$t][Forecast::LOAD] - $forecasts[$time][Forecast::LOAD])
+        + self::SOLAR_SEASON * $season
+          * ($forecasts[$t]['solar'] - $forecasts[$time]['solar']);
 
-      self::balance($row, $map);
+      self::dispatch($row, $map, $target);
+      self::balance($row, $target);
+
+      $row['emissions'] = max(0, (int)round(
+        (float)($map['emissions'] ?? 0) + Emissions::calculate($row) - $calculated
+      ));
 
       $predicted[$t] = new Datum($row);
     }
@@ -182,9 +210,77 @@ class Prediction {
   }
 
   /**
-   * Moves the interconnectors so that demand stays where it was, leaving the
-   * equation the panel prints — demand = generation + transfers — true of the
-   * predicted quarter hour as it is of the measured ones.
+   * Returns where a moment falls in the year: +1 in mid-July, -1 in
+   * mid-January, following a cosine in between.
+   *
+   * @param int $time The Unix timestamp
+   */
+  private static function season(int $time): float {
+    return cos(2 * M_PI * ((int)gmdate('z', $time) + 1 - 196) / 365.25);
+  }
+
+  /**
+   * Returns whether a forecast row can be built on: every generation column
+   * and a demand. Rows written before the demand was required carry nought in
+   * place of it, which anchored against a real figure would read as the grid
+   * losing fifty gigawatts.
+   *
+   * @param ?array<string,float> $forecast The forecast row
+   */
+  private static function usable(?array $forecast): bool {
+    if ($forecast === null || ($forecast[Forecast::LOAD] ?? 0) <= 0) {
+      return false;
+    }
+
+    foreach (self::COLUMNS as $column) {
+      if (!isset($forecast[$column])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Moves coal and gas to meet their share of the change in demand that solar
+   * and wind do not already cover, each in proportion to what it is already
+   * running at, since those are the plants that are warm.
+   *
+   * @param array<string,mixed> $row    The predicted row, modified in place
+   * @param array<string,mixed> $anchor The last confirmed row
+   * @param float               $demand The estimated demand
+   */
+  private static function dispatch(array &$row, array $anchor, float $demand): void {
+    $anchorSources = (new Datum($anchor))->sources;
+    $sources       = (new Datum($row))->sources;
+
+    $residual = ($demand - Kind::Generation->get($anchorSources) - Kind::Transfers->get($anchorSources))
+      - (Kind::Generation->get($sources) - Kind::Generation->get($anchorSources));
+
+    $running = 0;
+
+    foreach (self::FOSSILS as $column) {
+      $running += (float)($anchor[$column] ?? 0);
+    }
+
+    if ($running <= 0) {
+      return;
+    }
+
+    foreach (self::FOSSILS as $column) {
+      $value = (float)($anchor[$column] ?? 0);
+
+      $row[$column] = max(0.0, round(
+        $value + self::FOSSIL_SHARE * $residual * $value / $running,
+        3
+      ));
+    }
+  }
+
+  /**
+   * Moves the interconnectors so that the estimated demand comes out, leaving
+   * the equation the panel prints — demand = generation + transfers — true of
+   * the predicted quarter hour as it is of the measured ones.
    *
    * The difference is spread across the borders in proportion to what each is
    * already carrying, since a surplus leaves along the lines already in use.
@@ -193,24 +289,14 @@ class Prediction {
    * shows up solely in the total.
    *
    * @param array<string,mixed> $row    The predicted row, modified in place
-   * @param array<string,mixed> $anchor The last confirmed row
+   * @param float               $demand The estimated demand
    */
-  private static function balance(array &$row, array $anchor): void {
-    $anchorSources = (new Datum($anchor))->sources;
-    $sources       = (new Datum($row))->sources;
+  private static function balance(array &$row, float $demand): void {
+    $sources = (new Datum($row))->sources;
 
-    // demand as it was at the anchor, which is what is being held
-    $held = Kind::Generation->get($anchorSources)
-      + Kind::Transfers->get($anchorSources);
-
-    // the share of the predicted change in generation that demand is allowed to
-    // take up; the borders carry the rest
-    $change = Kind::Generation->get($sources) - Kind::Generation->get($anchorSources);
-
-    // what the borders have to carry for that demand to come out again, with
-    // pumped storage counted separately since it is carried rather than moved
-    $target = $held
-      + self::DEMAND_SHARE * $change
+    // what the borders have to carry for that demand to come out, with pumped
+    // storage counted separately since it is carried rather than moved
+    $target = $demand
       - Kind::Generation->get($sources)
       - Source::Pumped->get($sources);
 

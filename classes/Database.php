@@ -559,12 +559,18 @@ class Database {
 
   /**
    * Deletes forecasts old enough that no prediction can still be anchored to
-   * them, keeping the table to a couple of days rather than growing forever.
+   * them, keeping the table to a week rather than growing forever.
+   *
+   * The estimate is anchored to the newest confirmed quarter hour and needs
+   * the forecast for it, so this bounds the longest stall it can cover. Two
+   * days, as it was, would have left it with nothing to anchor to part-way
+   * through a stall like the one in September 2026, which ran for five; eight
+   * clears the week the generation is re-read over, at a few hundred rows.
    */
   private function deleteOldForecasts(): void {
     $this->connection->query(
       'DELETE FROM forecast_quarter_hours'
-      . ' WHERE time<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)'
+      . ' WHERE time<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 8 DAY)'
     );
   }
 

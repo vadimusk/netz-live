@@ -5,12 +5,24 @@ namespace KateMorley\Grid\Data;
 use KateMorley\Grid\Database;
 
 /**
- * Reads forecast generation from Energy-Charts (https://api.energy-charts.info).
+ * Reads the day-ahead forecast from Energy-Charts (https://api.energy-charts.info):
+ * solar, both winds, and the demand.
  *
- * Only the weather-driven sources are forecast, because only they have a
- * forecast worth having: solar and wind are what move between one quarter hour
- * and the next, while coal, gas and biomass are dispatched slowly enough that
- * carrying the last confirmed figure forward costs little.
+ * Only the weather-driven sources are forecast among the generation, because
+ * only they have a forecast worth having: coal and gas are dispatched to meet
+ * the demand, and the estimate moves them from the demand forecast instead.
+ *
+ * The day-ahead forecast rather than the one revised through the day, which
+ * this read until September 2026. The revised one should be the sharper, but
+ * it failed in exactly the stalls the estimate exists for: on 24 September it
+ * had returned nothing for solar or onshore wind for twelve hours while the
+ * measurements stood two hours behind, so no estimate was drawn at all. The
+ * day-ahead one is published the day before and is complete. Anchored to the
+ * last confirmed quarter hour it came within 0.62GW of the generation at half
+ * an hour, where the revised one, captured live earlier that month, came
+ * within 0.67GW. And it is not rewritten afterwards — fetched again weeks
+ * later it matches what was published to the rounding — so it could be
+ * measured over every stored quarter hour rather than a few days of captures.
  *
  * The forecasts are kept in their own table rather than alongside the measured
  * quarter hours. Nothing here can overwrite a confirmed figure, which is the
@@ -18,7 +30,7 @@ use KateMorley\Grid\Database;
  * become part of the record.
  */
 class Forecast {
-  /** The columns written, which are also the production types requested. */
+  /** The generation columns written, which are also the types requested. */
   public const KEYS = [
     'solar',
     'wind_onshore',
@@ -26,27 +38,16 @@ class Forecast {
   ];
 
   /**
-   * The demand forecast, read from the day-ahead endpoint and stored beside
-   * the generation ones. Named `demand` rather than `load` because `load` is
-   * reserved in MariaDB and every statement naming it would need quoting.
-   *
-   * It is a day-ahead product and so does not sharpen as the hour approaches:
-   * measured against what the grid actually drew, it sits at about 2.4GW
-   * whatever the delay. Holding the last confirmed demand beats it while the
-   * source is less than about an hour and a half behind, and loses badly past
-   * that — 9GW against 2.3GW at six hours — which is exactly the stretch the
-   * estimate is drawn over during an outage.
+   * The demand forecast's column. Named `demand` rather than `load` because
+   * `load` is reserved in MariaDB and every statement naming it would need
+   * quoting.
    */
   public const LOAD = 'demand';
 
-  private const URL = 'https://api.energy-charts.info/public_power_forecast';
+  /** What Energy-Charts calls the demand. */
+  private const LOAD_TYPE = 'load';
 
-  /**
-   * The version two endpoint, the only one carrying a demand forecast. It
-   * answers in a different shape — rows of an ISO timestamp and a values
-   * object rather than parallel arrays — so it is parsed separately.
-   */
-  private const URL_LOAD = 'https://api.energy-charts.info/v2/public_power_forecast';
+  private const URL = 'https://api.energy-charts.info/v2/public_power_forecast';
 
   /**
    * The window read, in seconds either side of now.
@@ -54,7 +55,8 @@ class Forecast {
    * The past reaches back a day because the anchor the prediction is built on
    * is the newest confirmed quarter hour, which during an upstream stall can
    * be many hours old, and anchoring needs the forecast for that quarter hour
-   * as well as for the ones being predicted.
+   * as well as for the ones being predicted. Older rows stay in the table for
+   * as long as Database keeps them, so a longer stall is still covered.
    */
   private const PAST   = 24 * 60 * 60;
   private const FUTURE = 3 * 60 * 60;
@@ -67,39 +69,26 @@ class Forecast {
    * @throws DataException If the data was invalid
    */
   public static function update(Database $database): void {
-    $now  = time();
-    $from = $now - self::PAST;
-    $to   = $now + self::FUTURE;
+    $from = time() - self::PAST;
+    $to   = time() + self::FUTURE;
 
     $series = [];
 
-    foreach (self::KEYS as $type) {
+    foreach (array_merge(self::KEYS, [self::LOAD_TYPE]) as $type) {
       $series[$type] = self::read($type, $from, $to);
 
-      // While the upstream platform is unwell the endpoint answers for some
-      // production types and returns nothing but nulls for others. Treating a
-      // missing series as zero would put a midday collapse of solar power into
-      // the forecast, so a type that came back empty fails the step instead,
-      // leaving the forecast already stored to stand.
+      // a type that came back empty fails the step, leaving the forecast
+      // already stored to stand: written as zero, a missing solar series would
+      // be a midday collapse, and a missing demand a grid that had stopped
       if (count($series[$type]) === 0) {
         throw new DataException('No forecast values for ' . $type);
       }
     }
 
-    // the demand forecast is optional: without it the prediction falls back to
-    // holding the last confirmed demand, which is what it did before
-    $load = [];
-
-    try {
-      $load = self::readLoad();
-    } catch (DataException $e) {
-      $load = [];
-    }
-
     // only quarter hours every series reaches are written, for the same
-    // reason: a row is a mix, and a mix missing one of its parts is wrong
-    // rather than incomplete
-    $times = array_keys($series[self::KEYS[0]]);
+    // reason: a row is a set, and one missing a part is wrong rather than
+    // incomplete
+    $times = array_keys($series[self::LOAD_TYPE]);
 
     foreach (self::KEYS as $type) {
       $times = array_intersect($times, array_keys($series[$type]));
@@ -120,7 +109,7 @@ class Forecast {
         $row[] = $series[$type][$time];
       }
 
-      $row[] = $load[$time] ?? 0;
+      $row[] = $series[self::LOAD_TYPE][$time];
       $rows[] = $row;
     }
 
@@ -131,57 +120,8 @@ class Forecast {
   }
 
   /**
-   * Reads the day-ahead demand forecast, returning an array mapping normalised
-   * times to values in gigawatts.
-   *
-   * @return array<string,float>
-   *
-   * @throws DataException If the data was invalid
-   */
-  private static function readLoad(): array {
-    $rawData = @file_get_contents(
-      self::URL_LOAD . '?country=de&forecast_type=day-ahead&production_type=load'
-    );
-
-    if ($rawData === false) {
-      throw new DataException('Failed to read load');
-    }
-
-    $jsonData = json_decode($rawData, true);
-
-    if (!is_array($jsonData) || !isset($jsonData['data']) || !is_array($jsonData['data'])) {
-      throw new DataException('Missing load data');
-    }
-
-    $values = [];
-
-    foreach ($jsonData['data'] as $row) {
-      if (!is_array($row) || !isset($row['timestamp']) || !isset($row['values'])) {
-        continue;
-      }
-
-      $value   = reset($row['values']);
-      $seconds = strtotime($row['timestamp']);
-
-      if ($value === null || (!is_int($value) && !is_float($value))
-        || $seconds === false || $seconds % 900 !== 0
-      ) {
-        continue;
-      }
-
-      $values[Time::normaliseUnix($seconds, 15)] = round($value / 1000, 3);
-    }
-
-    if (count($values) === 0) {
-      throw new DataException('No load values');
-    }
-
-    return $values;
-  }
-
-  /**
-   * Reads one production type, returning an array mapping normalised times to
-   * values in gigawatts.
+   * Reads one type, returning an array mapping normalised times to values in
+   * gigawatts.
    *
    * @param string $type The production type
    * @param int    $from The start of the window
@@ -192,15 +132,13 @@ class Forecast {
    * @throws DataException If the data was invalid
    */
   private static function read(string $type, int $from, int $to): array {
-    $rawData = @file_get_contents(
-      self::URL
-      . '?country=de&production_type='
-      . rawurlencode($type)
-      . '&start='
-      . $from
-      . '&end='
-      . $to
-    );
+    $rawData = @file_get_contents(self::URL . '?' . http_build_query([
+      'country'         => 'de',
+      'forecast_type'   => 'day-ahead',
+      'production_type' => $type,
+      'start'           => gmdate('Y-m-d\TH:i\Z', $from),
+      'end'             => gmdate('Y-m-d\TH:i\Z', $to)
+    ]));
 
     if ($rawData === false) {
       throw new DataException('Failed to read ' . $type);
@@ -208,35 +146,26 @@ class Forecast {
 
     $jsonData = json_decode($rawData, true);
 
-    if (
-      !is_array($jsonData)
-      || !isset($jsonData['unix_seconds']) || !is_array($jsonData['unix_seconds'])
-      || !isset($jsonData['forecast_values']) || !is_array($jsonData['forecast_values'])
-      || count($jsonData['unix_seconds']) !== count($jsonData['forecast_values'])
-    ) {
+    if (!is_array($jsonData) || !isset($jsonData['data']) || !is_array($jsonData['data'])) {
       throw new DataException('Missing forecast data for ' . $type);
     }
 
     $values = [];
 
-    foreach ($jsonData['unix_seconds'] as $index => $seconds) {
-      $value = $jsonData['forecast_values'][$index];
-
-      if (!is_int($seconds)) {
-        throw new DataException('Invalid time: ' . $seconds);
-      }
-
-      // quarter hours the forecast doesn't cover are present but empty, and
-      // the whole window comes back empty while the upstream platform is down
-      if ($value === null) {
+    foreach ($jsonData['data'] as $row) {
+      if (!is_array($row) || !isset($row['timestamp']) || !isset($row['values']) || !is_array($row['values'])) {
         continue;
       }
 
-      if (!is_int($value) && !is_float($value)) {
-        throw new DataException('Invalid forecast value: ' . $value);
-      }
+      // rows carry an ISO timestamp with its offset, and one value keyed by
+      // the type; quarter hours the forecast does not reach are present but
+      // empty
+      $value   = reset($row['values']);
+      $seconds = strtotime($row['timestamp']);
 
-      if ($seconds % 900 !== 0) {
+      if ($value === null || $value === false || (!is_int($value) && !is_float($value))
+        || $seconds === false || $seconds % 900 !== 0
+      ) {
         continue;
       }
 
