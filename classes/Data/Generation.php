@@ -177,10 +177,6 @@ class Generation {
   ];
 
   /**
-   * Names for the core types, used only to say which one is holding the
-   * newest quarter hour back.
-   */
-  /**
    * Where and how far below the horizon the sun must be for an unpublished
    * solar reading to be taken as the zero it is.
    *
@@ -195,16 +191,34 @@ class Generation {
    * could have answered stalls in the same outages the measurements do: that
    * night it stopped at the same hour. The sun does not.
    *
-   * The position is Germany's north-western corner, near Flensburg, because
-   * that is where the sun sets last: if it is down there it is down over the
-   * whole country. Two degrees below the horizon is past sunset everywhere
-   * and well short of civil twilight, so nothing that could still be
-   * generating is ever written off as night.
+   * The sun has to be down at all four corners of the box around the country,
+   * not at one of them, because which corner keeps the light longest moves
+   * with the hour and the season: the west has the last of it in the evening
+   * and the east the first of it in the morning, the north has the longer
+   * days in summer and the south in winter. A single point in the north-west,
+   * which is what this used to test, is right at dusk and backwards at dawn:
+   * while it is still two degrees below the horizon, the sun already stands
+   * about three to six degrees above Görlitz and Passau for most of the year.
+   * The corners are rounded outwards, so any error leans towards daylight,
+   * and wherever the sun is near the horizon it stands highest over one of
+   * them.
+   *
+   * Two degrees below the horizon is well short of civil twilight, so nothing
+   * that could still be generating is ever written off as night.
    */
-  private const DARKNESS_LATITUDE  = 55.1;
-  private const DARKNESS_LONGITUDE = 5.9;
+  private const DARKNESS_CORNERS = [
+    [55.1,  5.8],
+    [55.1, 15.1],
+    [47.2,  5.8],
+    [47.2, 15.1]
+  ];
+
   private const DARKNESS_ELEVATION = -2.0;
 
+  /**
+   * Names for the core types, used only to say which one is holding the
+   * newest quarter hour back.
+   */
   private const CORE_NAMES = [
     'B02' => 'lignite',
     'B04' => 'gas',
@@ -420,18 +434,6 @@ class Generation {
   }
 
   /**
-   * Returns the times every one of a set of production types reaches.
-   *
-   * A quarter hour is only worth writing once the whole core mix covers it:
-   * an intersection rather than a union, so that a row is never assembled by
-   * carrying one type forward past the point where the rest of them stop.
-   *
-   * @param array<string,array<string,float>> $series The series by type
-   * @param array<string>                     $codes  The types to require
-   *
-   * @return array<string>
-   */
-  /**
    * Fills in an unpublished solar reading as zero for the quarter hours the
    * sun is below the horizon, so that a missing nought does not hold the rest
    * of the mix back.
@@ -461,9 +463,10 @@ class Generation {
   }
 
   /**
-   * Returns whether the sun is below DARKNESS_ELEVATION at the reference
-   * position, using the usual approximation of the solar position: good to a
-   * fraction of a degree, which against a two-degree margin is ample.
+   * Returns whether the sun is below DARKNESS_ELEVATION at every one of the
+   * DARKNESS_CORNERS, using the usual approximation of the solar position:
+   * good to a fraction of a degree, which against a two-degree margin is
+   * ample.
    *
    * @param int $time The Unix timestamp
    */
@@ -471,7 +474,9 @@ class Generation {
     $day      = (int)gmdate('z', $time) + 1;
     $fraction = 2 * M_PI / 365 * ($day - 1 + ((int)gmdate('G', $time) - 12) / 24);
 
-    // the equation of time, in minutes, and the declination, in radians
+    // the equation of time, in minutes, and the declination, in radians, are
+    // the same wherever the sun is seen from; only the hour angle and the
+    // latitude differ between the corners
     $equation = 229.18 * (0.000075
       + 0.001868 * cos($fraction) - 0.032077 * sin($fraction)
       - 0.014615 * cos(2 * $fraction) - 0.040849 * sin(2 * $fraction));
@@ -481,20 +486,37 @@ class Generation {
       - 0.006758 * cos(2 * $fraction) + 0.000907 * sin(2 * $fraction)
       - 0.002697 * cos(3 * $fraction) + 0.001480 * sin(3 * $fraction);
 
-    $minutes = (int)gmdate('G', $time) * 60 + (int)gmdate('i', $time)
-      + $equation + 4 * self::DARKNESS_LONGITUDE;
+    $minutes = (int)gmdate('G', $time) * 60 + (int)gmdate('i', $time);
 
-    $hourAngle = deg2rad($minutes / 4 - 180);
-    $latitude  = deg2rad(self::DARKNESS_LATITUDE);
+    foreach (self::DARKNESS_CORNERS as list($latitude, $longitude)) {
+      $hourAngle = deg2rad(($minutes + $equation + 4 * $longitude) / 4 - 180);
 
-    $elevation = rad2deg(asin(
-      sin($latitude) * sin($declination)
-      + cos($latitude) * cos($declination) * cos($hourAngle)
-    ));
+      $elevation = rad2deg(asin(
+        sin(deg2rad($latitude)) * sin($declination)
+        + cos(deg2rad($latitude)) * cos($declination) * cos($hourAngle)
+      ));
 
-    return $elevation < self::DARKNESS_ELEVATION;
+      // one corner where the sun is not yet that far down rules it out
+      if ($elevation >= self::DARKNESS_ELEVATION) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
+  /**
+   * Returns the times every one of a set of production types reaches.
+   *
+   * A quarter hour is only worth writing once the whole core mix covers it:
+   * an intersection rather than a union, so that a row is never assembled by
+   * carrying one type forward past the point where the rest of them stop.
+   *
+   * @param array<string,array<string,float>> $series The series by type
+   * @param array<string>                     $codes  The types to require
+   *
+   * @return array<string>
+   */
   private static function coveredTimes(array $series, array $codes): array {
     $times = null;
 
