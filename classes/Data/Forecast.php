@@ -66,6 +66,20 @@ class Forecast {
   private const FUTURE = 12 * 60 * 60;
 
   /**
+   * The pause between one series and the next, in seconds.
+   *
+   * Energy-Charts allows two requests a minute from one address, with a burst
+   * of four, and the carbon intensity has already spent one of the four by the
+   * time this runs, with the frequency still to come. Four series back to back
+   * was one too many: the fourth was refused, and the frequency after it. The
+   * demand came fourth, which is why, while it was read as optional, the
+   * forecast table held a demand on only a fraction of its rows. Spaced like
+   * this the bucket refills as it goes, at the cost of a minute on the two
+   * updates an hour that read the forecast.
+   */
+  private const PACE = 20;
+
+  /**
    * Updates the forecast data.
    *
    * @param Database $database The database instance
@@ -74,11 +88,8 @@ class Forecast {
    */
   public static function update(Database $database): void {
     // The day-ahead forecast is published once a day, so reading it every
-    // five minutes spends Energy-Charts' rate limit for nothing. That limit is
-    // shared with the carbon intensity and the frequency, and four requests
-    // here on every update were enough for it to refuse the rest, one run in
-    // two, the day this switched to the day-ahead forecast. Twice an hour is
-    // plenty.
+    // five minutes spends Energy-Charts' rate limit (see PACE) for nothing.
+    // Twice an hour is plenty.
     if (!Time::isHalfHourly(time())) {
       return;
     }
@@ -88,7 +99,11 @@ class Forecast {
 
     $series = [];
 
-    foreach (array_merge(self::KEYS, [self::LOAD_TYPE]) as $type) {
+    foreach (array_merge(self::KEYS, [self::LOAD_TYPE]) as $index => $type) {
+      if ($index > 0) {
+        sleep(self::PACE);
+      }
+
       $series[$type] = self::read($type, $from, $to);
 
       // a type that came back empty fails the step, leaving the forecast
