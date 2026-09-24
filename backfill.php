@@ -2,8 +2,8 @@
 
 // Imports the historic archive from SMARD, which reaches back to the start of
 // 2015. This is a one-off: the regular update only ever looks at the past day,
-// so without this the year and all-time views hold only as much as the site
-// has been running for.
+// and twice an hour at the past week, so without this the year and all-time
+// views hold only as much as the site has been running for.
 //
 // Usage: php backfill.php [--from=YYYY-MM-DD] [--to=YYYY-MM-DD] [--source=smard|entsoe]
 //

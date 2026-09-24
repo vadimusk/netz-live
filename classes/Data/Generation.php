@@ -255,8 +255,33 @@ class Generation {
     'switzerland'    => [Entsoe::CONTROL_AREA, ['10YCH-SWISSGRIDZ']]
   ];
 
-  /** The period read on each update, in seconds. */
+  /** The period read on most updates, in seconds. */
   private const PERIOD = 24 * 60 * 60;
+
+  /**
+   * The longer period read on one update in every LONG_EVERY, in seconds.
+   *
+   * The operators go on revising their figures after the first day, and a
+   * quarter hour older than PERIOD was never read again, so the archive kept
+   * whatever was published first. Re-reading 27 days on 24 September 2026
+   * found 962 of 2589 stored quarter hours changed since: solar revised by
+   * about 0.2GW on half the daylight quarter hours of every day, a day or two
+   * after the fact, and hard coal held at 4.40GW for fifteen hours on
+   * 10 September while the real figure ran between 3 and 5GW — a point
+   * stretched across a stall, whose real replacement arrived too late to be
+   * taken up. PERIOD was also the point past which a stall loses data for
+   * good, and on 9 September the lag reached 23.3 hours of it.
+   *
+   * A week costs no more to read than a day — about five seconds either way,
+   * the wait being on the platform rather than the payload — but there is no
+   * need to ask for it every five minutes, so the ordinary updates keep to
+   * the day and every sixth one, twice an hour, takes the week.
+   */
+  private const LONG_PERIOD = 7 * 24 * 60 * 60;
+  private const LONG_EVERY  = 6;
+
+  /** The interval the update runs at from cron, in seconds. */
+  private const INTERVAL = 5 * 60;
 
   /**
    * Updates the generation data.
@@ -266,7 +291,14 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   public static function update(Database $database): void {
-    $from = time() - self::PERIOD;
+    // counted by wall-clock slot rather than by run, so it needs no state:
+    // the updates starting on the hour and the half hour read the week
+    $long = intdiv(time(), self::INTERVAL) % self::LONG_EVERY === 0;
+    $from = time() - ($long ? self::LONG_PERIOD : self::PERIOD);
+
+    if ($long) {
+      echo '(week) ';
+    }
 
     try {
       $generation = self::readGeneration($from);
