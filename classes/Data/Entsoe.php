@@ -50,15 +50,32 @@ class Entsoe {
    *
    * Curve type A03 means a point holds until the next one or until the period
    * ends, which is right for a border whose flow genuinely has not changed. It
-   * is wrong for weather-driven generation: there, a period declaring a single
-   * point across hours means the operators have not published yet, not that
-   * the wind held to the watt. On 3 Sep 2026 that wrote onshore wind as exactly
+   * is wrong for generation: there, a period declaring a single point across
+   * hours means the operators have not published yet, not that the output
+   * held to the watt. On 3 Sep 2026 that wrote onshore wind as exactly
    * 10.22 GW for eleven consecutive quarter hours, which the core-type check
    * then waved through because a value was present, and which the platform
-   * later withdrew. Measured over four weeks a genuine run of identical values
-   * lasts two quarter hours; four is comfortably clear of that.
+   * later withdrew.
+   *
+   * The slow types were left out at first on the reasoning that carrying coal
+   * forward costs little. It does, for a quarter hour; on 10 Sep 2026 hard
+   * coal was carried at 4.40 GW for 62 of them, fifteen hours, while the real
+   * figure ran between 3 and 5 GW. So every core type is limited now.
+   *
+   * The limits sit above anything genuine. Over the twelve months to August
+   * 2026 the final data has a point on nearly every quarter hour: the longest
+   * a single point covered was one quarter hour for lignite and the winds,
+   * two for gas and hard coal, and six for pumped storage, which idles; solar
+   * holds its night-time zero for hours, which is what the darkness rule in
+   * Generation stands in for. At the live edge a period ends where its last
+   * point does, so in ordinary running the fill is nothing and none of this
+   * bites; it only catches a submission that declares hours it has not filled.
    */
   private const HOLD_LIMIT = [
+    'B02' => 4,
+    'B04' => 4,
+    'B05' => 4,
+    'B10' => 8,
     'B16' => 4,
     'B18' => 4,
     'B19' => 4
