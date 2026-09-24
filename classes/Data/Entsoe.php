@@ -260,7 +260,19 @@ class Entsoe {
       }
 
       // prices are already per megawatt hour, so they are not scaled
-      foreach (self::series($body, 1) as list($type, $inZone, $values)) {
+      foreach (self::series($body, 1) as list($type, $inZone, $values, $sequence)) {
+        // The DE-LU document carries two price series for every day, numbered
+        // 1 and 2 in a classification sequence, and lists them in no fixed
+        // order. The first is the day-ahead price SMARD and Energy-Charts
+        // publish, to the cent; the second differs from it by tens of euros
+        // in places. Taking whichever came last, as this used to, gave the
+        // right price on some days and the other one on the rest — 3, 13 and
+        // 15 September among them. A series with no sequence at all is the
+        // only one in its document, as in the older years, and is taken.
+        if ($sequence !== null && $sequence !== 1) {
+          continue;
+        }
+
         foreach ($values as $time => $value) {
           $prices[$keys[$position]][$time] = round($value, 2);
         }
@@ -413,6 +425,15 @@ class Entsoe {
       $inZone = self::text($xpath, './*[local-name()="inBiddingZone_Domain.mRID"]', $node) !== null;
       $values = [];
 
+      // price documents can carry more than one series for the same zone,
+      // told apart only by their place in a classification sequence; the
+      // documents for other data carry none, which is returned as null
+      $sequence = self::text(
+        $xpath,
+        './/*[local-name()="classificationSequence_AttributeInstanceComponent.position"]',
+        $node
+      );
+
       foreach ($xpath->query('./*[local-name()="Period"]', $node) as $period) {
         $interval = './*[local-name()="timeInterval"]/*[local-name()=';
         $start    = self::text($xpath, $interval . '"start"]', $period);
@@ -496,7 +517,7 @@ class Entsoe {
       }
 
       if (count($values) !== 0) {
-        $series[] = [$type, $inZone, $values];
+        $series[] = [$type, $inZone, $values, $sequence === null ? null : (int)$sequence];
       }
     }
 
