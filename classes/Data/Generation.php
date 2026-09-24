@@ -259,7 +259,7 @@ class Generation {
   private const PERIOD = 24 * 60 * 60;
 
   /**
-   * The longer period read on one update in every LONG_EVERY, in seconds.
+   * The longer period read on the half-hourly updates, in seconds.
    *
    * The operators go on revising their figures after the first day, and a
    * quarter hour older than PERIOD was never read again, so the archive kept
@@ -278,10 +278,6 @@ class Generation {
    * the day and every sixth one, twice an hour, takes the week.
    */
   private const LONG_PERIOD = 7 * 24 * 60 * 60;
-  private const LONG_EVERY  = 6;
-
-  /** The interval the update runs at from cron, in seconds. */
-  private const INTERVAL = 5 * 60;
 
   /**
    * Updates the generation data.
@@ -291,9 +287,7 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   public static function update(Database $database): void {
-    // counted by wall-clock slot rather than by run, so it needs no state:
-    // the updates starting on the hour and the half hour read the week
-    $long = intdiv(time(), self::INTERVAL) % self::LONG_EVERY === 0;
+    $long = Time::isHalfHourly(time());
     $from = time() - ($long ? self::LONG_PERIOD : self::PERIOD);
 
     if ($long) {

@@ -4,6 +4,23 @@ namespace KateMorley\Grid\Data;
 
 /** Functions for handling times. */
 class Time {
+  /** The interval the update runs at from cron, in seconds. */
+  private const INTERVAL = 5 * 60;
+
+  /**
+   * Returns whether an update starting at a time is one of the two an hour,
+   * on the hour and the half hour, that do the work there is no need to do
+   * every five minutes.
+   *
+   * Counted by wall-clock slot rather than by run, so it needs no state, and
+   * one update in six is picked however late a run starts within its slot.
+   *
+   * @param int $time The Unix timestamp
+   */
+  public static function isHalfHourly(int $time): bool {
+    return intdiv($time, self::INTERVAL) % 6 === 0;
+  }
+
   /**
    * Normalises a time and returns it as a "YYYY-MM-DD HH:MM:SS" string.
    *

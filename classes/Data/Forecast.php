@@ -57,9 +57,13 @@ class Forecast {
    * be many hours old, and anchoring needs the forecast for that quarter hour
    * as well as for the ones being predicted. Older rows stay in the table for
    * as long as Database keeps them, so a longer stall is still covered.
+   *
+   * The future reaches twelve hours because the forecast is read only twice
+   * an hour, and a few failed reads in a row should not leave the estimate
+   * with nothing to run on.
    */
   private const PAST   = 24 * 60 * 60;
-  private const FUTURE = 3 * 60 * 60;
+  private const FUTURE = 12 * 60 * 60;
 
   /**
    * Updates the forecast data.
@@ -69,6 +73,16 @@ class Forecast {
    * @throws DataException If the data was invalid
    */
   public static function update(Database $database): void {
+    // The day-ahead forecast is published once a day, so reading it every
+    // five minutes spends Energy-Charts' rate limit for nothing. That limit is
+    // shared with the carbon intensity and the frequency, and four requests
+    // here on every update were enough for it to refuse the rest, one run in
+    // two, the day this switched to the day-ahead forecast. Twice an hour is
+    // plenty.
+    if (!Time::isHalfHourly(time())) {
+      return;
+    }
+
     $from = time() - self::PAST;
     $to   = time() + self::FUTURE;
 
