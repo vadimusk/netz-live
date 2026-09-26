@@ -17,6 +17,11 @@ class State {
    *                                       once the source has fallen far
    *                                       enough behind for its width to be
    *                                       worth reading
+   * @param array<float>  $upcomingPrices The day-ahead prices of the quarter
+   *                                       hours after the newest confirmed one,
+   *                                       up to the one running now, keyed by
+   *                                       time: known exactly however far the
+   *                                       rest of the record lags
    * @param Datum         $day            The past day's datum
    * @param Datum         $week           The past week's datum
    * @param Datum         $year           The past year's datum
@@ -37,6 +42,7 @@ class State {
     public readonly Datum  $latest,
     public readonly array  $predicted,
     public readonly bool   $banded,
+    public readonly array  $upcomingPrices,
     public readonly Datum  $day,
     public readonly Datum  $week,
     public readonly Datum  $year,

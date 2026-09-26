@@ -17,14 +17,14 @@ class PieChart {
    * @param Sources $sources The sources
    * @param string  $locale  The locale ('de' or 'en')
    */
-  public static function output(Sources $sources, string $locale): void {
+  public static function output(Sources $sources, string $locale, bool $estimated = false): void {
     $generation = Kind::Generation->get($sources);
     $demand     = $generation + Kind::Transfers->get($sources);
 
     $generationPower      = Value::formatTotalPower($generation, $locale);
     $generationPercentage = Value::formatShare($generation, $demand, $locale);
 
-    echo '<div class="pie-chart"><div><div>';
+    echo '<div class="pie-chart' . ($estimated ? ' estimated' : '') . '"><div><div>';
     echo I18n::t('kind.generation', $locale);
     echo '</div><div class="generation"></div><div><span>';
     echo $generationPower;

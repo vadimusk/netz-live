@@ -75,7 +75,7 @@ class UI {
 
 ?>
 <!DOCTYPE html>
-<html lang="<?= $locale ?>" data-version="<?= max($stylesheetModified, $javascriptModified) ?>">
+<html lang="<?= $locale ?>" data-version="<?= max($stylesheetModified, $javascriptModified) ?>" data-built="<?= time() ?>">
   <head>
     <title>
       <?= I18n::t('site.title', $locale) ?>
@@ -144,16 +144,12 @@ class UI {
     </header>
     <main>
       <div id="live">
-        <div>
-<?php Status::output($this->state->latest, Status::time($this->state->time, $locale), $locale, true, time() - $this->state->time); ?>
-<?php Equation::output($this->state->latest->sources, $locale, true); ?>
-        </div>
+<?php $this->livePanel(); ?>
+<?php NowBand::output($this->state, $this->frequency, $locale); ?>
         <div class="sources">
 <?php Latest::output($this->state->latest->sources, new Sparklines($this->state->daySeries), $locale); ?>
         </div>
-        <?php PieChart::output($this->state->latest->sources, $locale); ?>
       </div>
-<?php if ($this->frequency !== null) { Frequency::output($this->frequency, $locale, true); } ?>
 <?php $this->historical(); ?>
     </main>
     <footer>
@@ -167,6 +163,47 @@ class UI {
     </dialog>
   </body>
 </html>
+<?php
+  }
+
+  /**
+   * Outputs the live panel: the last reported quarter hour and, where there is
+   * an estimate for it, the quarter hour running now, one at a time behind a
+   * switch in place of the time.
+   *
+   * The two are drawn in full and the switch only chooses which is shown, so
+   * it needs nothing from the server and survives the page updating itself.
+   * The pie chart follows the switch; the tables of sources below it do not,
+   * since the estimate does not divide the transfers between countries.
+   */
+  private function livePanel(): void {
+    $locale   = $this->locale;
+    $now      = intdiv(time(), 900) * 900;
+    $estimate = $this->state->predicted[$now] ?? null;
+    $price    = $this->state->upcomingPrices[$now] ?? null;
+
+    $switch = fn (bool $showingNow) => $estimate === null ? null
+      : '<span class="switch" role="group" aria-label="' . I18n::t('now.switch', $locale) . '">'
+        . '<button type="button" data-moment="reported" aria-pressed="' . ($showingNow ? 'false' : 'true') . '">'
+        . Status::time($this->state->time, $locale) . '</button>'
+        . '<button type="button" data-moment="now" aria-pressed="' . ($showingNow ? 'true' : 'false') . '">'
+        . I18n::t('now.button', $locale) . '<span class="at"> ' . Status::time($now, $locale) . '</span></button></span>';
+
+?>
+        <div class="reported">
+<?php Status::output($this->state->latest, Status::time($this->state->time, $locale), $locale, true, time() - $this->state->time, switch: $switch(false)); ?>
+<?php Equation::output($this->state->latest->sources, $locale, true); ?>
+        </div>
+<?php if ($estimate !== null) { ?>
+        <div class="estimated">
+<?php Status::output($estimate, Status::time($now, $locale), $locale, estimate: true, price: $price, switch: $switch(true)); ?>
+<?php Equation::output($estimate->sources, $locale, false, true); ?>
+        </div>
+<?php } ?>
+        <?php PieChart::output($this->state->latest->sources, $locale); ?>
+<?php if ($estimate !== null) { ?>
+        <?php PieChart::output($estimate->sources, $locale, true); ?>
+<?php } ?>
 <?php
   }
 

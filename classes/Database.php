@@ -48,6 +48,9 @@ class Database {
         time()
       ),
       Prediction::banded($time, time()),
+      // settled the day before, so known exactly even while the rest of the
+      // record lags
+      $this->getUpcomingPrices($time, intdiv(time(), 900) * 900),
       $this->getPastPeriod(self::PAST_DAY),
       $this->getPastPeriod(self::PAST_WEEK),
       $this->getPastPeriod(self::PAST_YEAR),
@@ -505,9 +508,9 @@ class Database {
   /**
    * Writes forecast quarter hours.
    *
-   * Forecasts are revised as the weather models are rerun, so rows are
-   * replaced rather than inserted: the newest reading for a quarter hour is
-   * the only one worth keeping.
+   * Forecasts are revised as the weather models are rerun, so the newest
+   * reading for a quarter hour overwrites the one before. Only the forecast
+   * columns are written, leaving the price that Pricing keeps in the same row.
    *
    * @param array<string> $columns The columns
    * @param array         $rows    The rows, each starting with a quoted time
@@ -521,12 +524,59 @@ class Database {
       }
 
       $this->connection->query(
-        'REPLACE INTO forecast_quarter_hours (time,'
+        'INSERT INTO forecast_quarter_hours (time,'
         . implode(',', $columns)
         . ') VALUES '
         . implode(',', $values)
+        . self::getOnDuplicateKeyUpdateClause($columns)
       );
     }
+  }
+
+  /**
+   * Writes the day-ahead price for quarter hours the record has not reached.
+   *
+   * Settled at auction the day before, these are facts rather than estimates,
+   * but they belong to quarter hours past the newest generation, and a row of
+   * past_quarter_hours holding a price and nothing else would read as a grid
+   * that had stopped. So they are kept beside the forecasts, touching only the
+   * price column.
+   *
+   * @param array $rows The rows, each a quoted time and a price
+   */
+  public function updateUpcomingPrices(array $rows): void {
+    foreach (array_chunk($rows, 200) as $chunk) {
+      $this->connection->query(
+        'INSERT INTO forecast_quarter_hours (time,price) VALUES '
+        . implode(',', array_map(fn ($row) => '(' . $row[0] . ',' . $row[1] . ')', $chunk))
+        . self::getOnDuplicateKeyUpdateClause(['price'])
+      );
+    }
+  }
+
+  /**
+   * Returns the known day-ahead prices for the quarter hours after one time
+   * up to another, as an array mapping times to prices.
+   *
+   * @param int $after The Unix timestamp the prices follow
+   * @param int $until The Unix timestamp of the last quarter hour wanted
+   *
+   * @return array<int,float>
+   */
+  private function getUpcomingPrices(int $after, int $until): array {
+    $rows = $this->connection->query(
+      'SELECT time,price FROM forecast_quarter_hours WHERE price IS NOT NULL'
+      . ' AND time>"' . gmdate('Y-m-d H:i:s', $after) . '"'
+      . ' AND time<="' . gmdate('Y-m-d H:i:s', $until) . '" ORDER BY time'
+    );
+
+    $prices = [];
+
+    while ($row = $rows->fetch_row()) {
+      $prices[strtotime($row[0] . ' UTC')] = (float)$row[1];
+    }
+
+    return $prices;
   }
 
   /**

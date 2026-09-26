@@ -23,22 +23,32 @@ class Status {
    * @param bool   $help       Whether to show the help
    * @param ?int   $ageSeconds The age of the data in seconds, shown beside the
    *                           time on the live panel; null elsewhere
+   * @param bool   $estimate   Whether this is the estimated row for the
+   *                           quarter hour running now
+   * @param ?float $price      For the estimated row, the day-ahead price of
+   *                           that quarter hour, which is known rather than
+   *                           estimated; null shows a dash
+   * @param ?string $switch    The switch between the reported and the present
+   *                           quarter hour, shown in place of the time
    */
   public static function output(
     Datum  $datum,
     string $time,
     string $locale,
     bool   $help = false,
-    ?int   $ageSeconds = null
+    ?int   $ageSeconds = null,
+    bool   $estimate = false,
+    ?float $price = null,
+    ?string $switch = null
   ): void {
 ?>
           <dl>
             <dt><?= I18n::t('status.time', $locale) ?><?php if ($help) { ?> <span data-help="time"></span><?php } ?></dt>
-            <dd><?= $time ?><?php if ($ageSeconds !== null) { ?><span class="age<?= $ageSeconds > self::STALE_AFTER ? ' stale' : '' ?>"><?= I18n::age($ageSeconds, $locale) ?></span><?php } ?></dd>
+            <dd><?= $switch ?? $time ?><?php if ($ageSeconds !== null) { ?><span class="age<?= $ageSeconds > self::STALE_AFTER ? ' stale' : '' ?>"><?= I18n::age($ageSeconds, $locale) ?></span><?php } elseif ($estimate) { ?><span class="age"><?= I18n::t('now.note', $locale) ?> <span data-help="now"></span></span><?php } ?></dd>
             <dt><?= I18n::t('status.price', $locale) ?><?php if ($help) { ?>  <span data-help="price"></span><?php } ?></dt>
-            <dd><?= Value::formatPrice($datum->price, $locale) ?><abbr>/MWh</abbr></dd>
+            <dd><?php if ($estimate && $price === null) { ?>—<?php } else { ?><?= Value::formatPrice($estimate ? $price : $datum->price, $locale) ?><abbr>/MWh</abbr><?php } ?></dd>
             <dt><?= I18n::t('status.emissions', $locale) ?><?php if ($help) { ?> <span data-help="emissions"></span><?php } ?></dt>
-            <dd class="<?= Emissions::get((int)$datum->emissions)->class() ?>"><?= (int)$datum->emissions ?><abbr>g/kWh</abbr></dd>
+            <dd class="<?= Emissions::get((int)$datum->emissions)->class() ?>"><?= $estimate ? '<span class="est">≈' . (int)$datum->emissions . '</span>' : (int)$datum->emissions ?><abbr>g/kWh</abbr></dd>
           </dl>
 <?php
   }

@@ -145,6 +145,9 @@ CREATE TABLE `forecast_quarter_hours` (
   -- the day-ahead demand forecast; rows written before it was required may
   -- hold zero, which the prediction treats as missing
   `demand` decimal(5,2) UNSIGNED NOT NULL DEFAULT 0.00,
+  -- the day-ahead price, which is settled rather than forecast, for quarter
+  -- hours the record has not reached; null where it is not yet known
+  `price` decimal(7,2) DEFAULT NULL,
   PRIMARY KEY (`time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

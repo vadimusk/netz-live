@@ -29,34 +29,22 @@ class Frequency {
   private const STRAINED = 50;
 
   /**
-   * Outputs the band.
+   * Outputs the frequency as a cell of the band describing now: the only
+   * figure there that is measured rather than estimated or fixed ahead.
    *
    * @param Reading $reading The reading
    * @param string  $locale  The locale ('de' or 'en')
-   * @param bool    $help    Whether to show the help
    */
-  public static function output(
-    Reading $reading,
-    string  $locale,
-    bool    $help = false
-  ): void {
+  public static function cell(Reading $reading, string $locale): void {
     $deviation = $reading->deviation();
-    $time      = (new \DateTime('@' . $reading->time))->setTimezone(
-      new \DateTimeZone('Europe/Berlin')
-    );
+    $class     = self::class_($deviation);
 ?>
-      <div id="frequency">
-        <dl>
-          <dt><?= I18n::t('frequency.heading', $locale) ?><?php if ($help) { ?> <span data-help="frequency"></span><?php } ?></dt>
-          <dd class="<?= self::class_($deviation) ?>"><?= I18n::number($reading->hertz, 3, $locale) ?><abbr>Hz</abbr></dd>
-        </dl>
+          <div class="cell frequency">
+            <span class="label"><?= I18n::t('frequency.heading', $locale) ?> <span data-help="frequency"></span></span>
+            <span class="value <?= $class ?>"><?= I18n::number($reading->hertz, 3, $locale) ?><abbr>Hz</abbr></span>
+            <span class="note"><span class="<?= $class ?>"><?= ($deviation > 0 ? '+' : ($deviation < 0 ? '−' : '±')) . abs((int)$deviation) ?>&#8201;mHz</span> · <?= I18n::t('frequency.area', $locale) ?> · <?= Status::time($reading->time, $locale) ?></span>
 <?= self::sparkline($reading->series) ?>
-        <p>
-          <span class="<?= self::class_($deviation) ?>"><?= ($deviation > 0 ? '+' : ($deviation < 0 ? '−' : '±')) . abs((int)$deviation) ?><abbr>mHz</abbr></span>
-          <span><?= I18n::t('frequency.area', $locale) ?></span>
-          <time datetime="<?= gmdate('c', $reading->time) ?>"><?= $time->format('H:i') ?></time>
-        </p>
-      </div>
+          </div>
 <?php
   }
 

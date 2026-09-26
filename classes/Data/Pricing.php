@@ -51,15 +51,19 @@ class Pricing {
     // delivery days, so it returns quarter hours before the window, and SMARD
     // reads just the current week's file, so tomorrow is routinely missing
     // from it; counting either as a gap would report a fallback every day.
+    $start   = Time::normaliseUnix($from, 15);
+    $reached = Time::normaliseUnix($latest, 15);
+
     try {
-      $filled  = 0;
-      $start   = Time::normaliseUnix($from, 15);
-      $reached = Time::normaliseUnix($latest, 15);
+      $filled = 0;
 
       foreach (Entsoe::readPrices(['price' => Entsoe::BIDDING_ZONE], $from)['price'] ?? [] as $time => $value) {
-        if ($time >= $start && $time <= $reached && !isset($prices[$time])) {
+        if ($time >= $start && !isset($prices[$time])) {
           $prices[$time] = $value;
-          $filled ++;
+
+          if ($time <= $reached) {
+            $filled ++;
+          }
         }
       }
 
@@ -74,15 +78,22 @@ class Pricing {
       throw $failure ?? new DataException('No prices from either source');
     }
 
-    $data = [];
+    $data     = [];
+    $upcoming = [];
 
     foreach ($prices as $time => $value) {
       $data[] = [$time, $value];
+
+      if ($time > $reached) {
+        $upcoming[] = [$time, $value];
+      }
     }
 
-    // settled a day ahead, so the price runs past the newest generation. Only
-    // the quarter hours the generation has reached are written, since a row
-    // holding a price and nothing else reads as a grid that stopped.
+    // settled a day ahead, so the price runs past the newest generation. The
+    // record takes only the quarter hours the generation has reached, since a
+    // row holding a price and nothing else reads as a grid that stopped; the
+    // rest are kept aside, so the page can say what power costs right now.
     $database->updateExisting(self::KEYS, $data);
+    $database->updateUpcomingPrices($upcoming);
   }
 }
