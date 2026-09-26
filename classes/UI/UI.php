@@ -180,7 +180,7 @@ class UI {
     $locale   = $this->locale;
     $now      = intdiv(time(), 900) * 900;
     $estimate = $this->state->predicted[$now] ?? null;
-    $price    = $this->state->upcomingPrices[$now] ?? null;
+    $price    = ($this->state->upcomingPrices[$now] ?? null)?->price;
 
     $switch = fn (bool $showingNow) => $estimate === null ? null
       : '<span class="switch" role="group" aria-label="' . I18n::t('now.switch', $locale) . '">'

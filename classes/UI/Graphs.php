@@ -196,6 +196,13 @@ class Graphs {
   private function series(Graph $graph, Period $period): array {
     $series = $period->series($this->state);
 
+    // the day-ahead price is fixed the day before, so over the past day its
+    // line runs on, solid, past the newest reported quarter hour to the one
+    // running now, where the lines built from an estimate turn dashed
+    if ($graph === Graph::Price && $period === Period::Day) {
+      return $series + $this->state->upcomingPrices;
+    }
+
     if ($graph !== Graph::Visits) {
       return $series;
     }

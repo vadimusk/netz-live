@@ -50,7 +50,7 @@ class Database {
       Prediction::banded($time, time()),
       // settled the day before, so known exactly even while the rest of the
       // record lags
-      $this->getUpcomingPrices($time, intdiv(time(), 900) * 900),
+      $this->getUpcomingPrices($time, intdiv(time(), 900) * 900, $latestMap),
       $this->getPastPeriod(self::PAST_DAY),
       $this->getPastPeriod(self::PAST_WEEK),
       $this->getPastPeriod(self::PAST_YEAR),
@@ -556,14 +556,20 @@ class Database {
 
   /**
    * Returns the known day-ahead prices for the quarter hours after one time
-   * up to another, as an array mapping times to prices.
+   * up to another, as an array mapping times to data.
    *
-   * @param int $after The Unix timestamp the prices follow
-   * @param int $until The Unix timestamp of the last quarter hour wanted
+   * Each is a datum so the price graph can draw it like any other point. A
+   * datum needs a mix, so each carries the newest reported one; nothing but
+   * the price is ever read from them.
    *
-   * @return array<int,float>
+   * @param int                 $after The Unix timestamp the prices follow
+   * @param int                 $until The Unix timestamp of the last quarter
+   *                                   hour wanted
+   * @param array<string,mixed> $map   The newest reported row
+   *
+   * @return array<int,Datum>
    */
-  private function getUpcomingPrices(int $after, int $until): array {
+  private function getUpcomingPrices(int $after, int $until, array $map): array {
     $rows = $this->connection->query(
       'SELECT time,price FROM forecast_quarter_hours WHERE price IS NOT NULL'
       . ' AND time>"' . gmdate('Y-m-d H:i:s', $after) . '"'
@@ -573,7 +579,7 @@ class Database {
     $prices = [];
 
     while ($row = $rows->fetch_row()) {
-      $prices[strtotime($row[0] . ' UTC')] = (float)$row[1];
+      $prices[strtotime($row[0] . ' UTC')] = new Datum(['price' => (float)$row[1]] + $map);
     }
 
     return $prices;

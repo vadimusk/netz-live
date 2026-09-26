@@ -46,7 +46,7 @@ class NowBand {
   ): void {
     $now      = intdiv(time(), 900) * 900;
     $estimate = $state->predicted[$now] ?? null;
-    $price    = $state->upcomingPrices[$now]
+    $price    = ($state->upcomingPrices[$now] ?? null)?->price
       ?? ($now <= $state->time ? $state->latest->price : null);
     $from     = min($now - self::WINDOW, $state->time - self::LEAD);
 
@@ -85,8 +85,7 @@ class NowBand {
             <span class="value"><?= $price === null ? '—' : Value::formatPrice($price, $locale) . '<abbr>/MWh</abbr>' ?></span>
             <span class="note"><?= I18n::t('now.priceFixed', $locale) ?></span>
 <?= self::line(
-      self::points($reported, fn ($datum) => $datum->price)
-        + array_filter($state->upcomingPrices, fn ($time) => $time <= $now, ARRAY_FILTER_USE_KEY),
+      self::points($reported + $state->upcomingPrices, fn ($datum) => $datum->price),
       [],
       $from,
       $now

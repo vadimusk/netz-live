@@ -17,11 +17,12 @@ class State {
    *                                       once the source has fallen far
    *                                       enough behind for its width to be
    *                                       worth reading
-   * @param array<float>  $upcomingPrices The day-ahead prices of the quarter
+   * @param array<Datum>  $upcomingPrices The day-ahead prices of the quarter
    *                                       hours after the newest confirmed one,
    *                                       up to the one running now, keyed by
    *                                       time: known exactly however far the
-   *                                       rest of the record lags
+   *                                       rest of the record lags. Only the
+   *                                       price is read from these
    * @param Datum         $day            The past day's datum
    * @param Datum         $week           The past week's datum
    * @param Datum         $year           The past year's datum
