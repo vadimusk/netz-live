@@ -43,7 +43,7 @@ class Frequency {
             <span class="label"><?= I18n::t('frequency.heading', $locale) ?> <span data-help="frequency"></span></span>
             <span class="value <?= $class ?>"><?= I18n::number($reading->hertz, 3, $locale) ?><abbr>Hz</abbr></span>
             <span class="note"><span class="<?= $class ?>"><?= ($deviation > 0 ? '+' : ($deviation < 0 ? '−' : '±')) . abs((int)$deviation) ?>&#8201;mHz</span> · <?= I18n::t('frequency.area', $locale) ?> · <?= Status::time($reading->time, $locale) ?></span>
-<?= self::sparkline($reading->series) ?>
+<?= self::sparkline($reading->series, $class) ?>
           </div>
 <?php
   }
@@ -64,11 +64,12 @@ class Frequency {
   }
 
   /**
-   * Returns the sparkline as SVG.
+   * Returns the sparkline as SVG, ending in a dot coloured as the figure is.
    *
    * @param array<float> $series The series
+   * @param string       $class  The class describing the latest deviation
    */
-  private static function sparkline(array $series): string {
+  private static function sparkline(array $series, string $class): string {
     if (count($series) < 2) {
       return '';
     }
@@ -91,15 +92,17 @@ class Frequency {
         . ',' . $y($value);
     }
 
-    return '        <svg viewBox="0 0 ' . self::WIDTH . ' ' . self::HEIGHT
-      . '" preserveAspectRatio="none" aria-hidden="true">'
-      . '<line x1="0" y1="' . $y(Reading::NOMINAL) . '" x2="' . self::WIDTH
-      . '" y2="' . $y(Reading::NOMINAL) . '"/>'
-      . self::bands($y)
-      . '<mask id="frequency-line" maskUnits="userSpaceOnUse" mask-type="alpha">'
-      . '<polyline points="' . implode(' ', $points) . '"/>'
-      . '</mask>'
-      . "</svg>\n";
+    return '        ' . NowBand::frame(
+      self::WIDTH,
+      self::HEIGHT,
+      '<line x1="0" y1="' . $y(Reading::NOMINAL) . '" x2="' . self::WIDTH
+        . '" y2="' . $y(Reading::NOMINAL) . '"/>'
+        . self::bands($y)
+        . '<mask id="frequency-line" maskUnits="userSpaceOnUse" mask-type="alpha">'
+        . '<polyline points="' . implode(' ', $points) . '"/>'
+        . '</mask>',
+      [[(float)self::WIDTH, $y(end($series)), 'now ' . $class]]
+    );
   }
 
   /**

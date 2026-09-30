@@ -127,8 +127,10 @@ class NowBand {
 
   /**
    * Returns a small line as SVG: the solid points, then the dashed ones,
-   * which begin where the solid ones end. The point where the reports stop
-   * is marked with an open dot and the present with a filled one.
+   * which begin where the solid ones end, and a dot at the present. Where the
+   * reports stop is left to the change from solid to dashed: the estimate
+   * rarely reaches more than an hour, so a second dot there would sit almost
+   * on top of the first.
    *
    * @param array<int,float> $solid  The solid points, keyed by time
    * @param array<int,float> $dashed The dashed points, keyed by time
@@ -166,22 +168,39 @@ class NowBand {
         : '<polyline class="' . $class . '" points="' . implode(' ', $coordinates) . '"/>';
     };
 
-    // a zero-length stroke with round caps draws a dot that stays round
-    // however far the line is stretched to fill its cell
-    $dot = fn ($time, $value, $class) => '<path class="' . $class . '" d="M'
-      . $x($time) . ' ' . $y($value) . 'h0"/>';
-
-    $svg = '<svg viewBox="0 0 ' . self::WIDTH . ' ' . self::HEIGHT
-      . '" preserveAspectRatio="none" aria-hidden="true">'
-      . $polyline($solid, 'solid')
-      . $polyline($dashed, 'dashed');
-
-    if (count($dashed) !== 0 && count($solid) !== 0) {
-      $svg .= $dot(array_key_last($solid), end($solid), 'then');
-    }
-
     $last = count($dashed) !== 0 ? $dashed : $solid;
-    $svg .= $dot(array_key_last($last), end($last), 'now');
+
+    return self::frame(
+      self::WIDTH,
+      self::HEIGHT,
+      $polyline($solid, 'solid') . $polyline($dashed, 'dashed'),
+      [[$x(array_key_last($last)), $y(end($last)), 'now']]
+    );
+  }
+
+  /**
+   * Returns a small line as SVG, with dots over it.
+   *
+   * The line is drawn in its own units and stretched to fill its cell, which
+   * would stretch a dot drawn with it into an oval, and the present sits on
+   * the right-hand edge, where the drawing would cut a dot in half. So the
+   * dots are drawn in a frame around the drawing instead, measured in pixels
+   * and placed by percentage: they stay round, and may reach past the edge.
+   *
+   * @param int                              $width  The width of the line's units
+   * @param int                              $height The height of the line's units
+   * @param string                           $line   The line, as SVG in its own units
+   * @param array<array{float,float,string}> $dots   The dots, each a position in
+   *                                                 the line's units and a class
+   */
+  public static function frame(int $width, int $height, string $line, array $dots): string {
+    $svg = '<svg aria-hidden="true"><svg viewBox="0 0 ' . $width . ' ' . $height
+      . '" preserveAspectRatio="none" width="100%" height="100%">' . $line . '</svg>';
+
+    foreach ($dots as [$x, $y, $class]) {
+      $svg .= '<circle class="' . $class . '" cx="' . round(100 * $x / $width, 2)
+        . '%" cy="' . round(100 * $y / $height, 2) . '%" r="3.5"/>';
+    }
 
     return $svg . "</svg>\n";
   }
