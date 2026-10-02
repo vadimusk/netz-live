@@ -1057,13 +1057,23 @@ dl {
       }
     }
 
-    /* the present, with a soft halo; the frequency's takes the colour of its
-       figure */
-    circle.now {
+    /* the present: a dot, and a ring spreading from it and fading in time
+       with the live dot beside "now", the way a ticker marks its newest
+       point. The frequency's take the colour of its figure. Where motion is
+       unwanted the ring stands still, as a halo */
+    circle {
       fill: currentColor;
-      stroke: currentColor;
-      stroke-opacity: 0.22;
-      stroke-width: 7;
+
+      &.ping {
+        opacity: 0.22;
+        transform: scale(2);
+        transform-box: fill-box;
+        transform-origin: center;
+
+        @media (prefers-reduced-motion: no-preference) {
+          animation: ping 2.4s ease-out infinite;
+        }
+      }
     }
   }
 
@@ -1112,6 +1122,12 @@ dl {
   @media (prefers-reduced-motion: no-preference) {
     animation: live 2.4s ease-out infinite;
   }
+}
+
+@keyframes ping {
+  0%   { opacity: 0.55; transform: scale(1); }
+  70%  { opacity: 0; transform: scale(3.4); }
+  100% { opacity: 0; transform: scale(3.4); }
 }
 
 @keyframes live {

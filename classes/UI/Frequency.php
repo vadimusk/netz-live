@@ -101,7 +101,7 @@ class Frequency {
         . '<mask id="frequency-line" maskUnits="userSpaceOnUse" mask-type="alpha">'
         . '<polyline points="' . implode(' ', $points) . '"/>'
         . '</mask>',
-      [[(float)self::WIDTH, $y(end($series)), 'now ' . $class]]
+      [[(float)self::WIDTH, $y(end($series)), $class]]
     );
   }
 

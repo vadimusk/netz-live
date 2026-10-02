@@ -174,32 +174,38 @@ class NowBand {
       self::WIDTH,
       self::HEIGHT,
       $polyline($solid, 'solid') . $polyline($dashed, 'dashed'),
-      [[$x(array_key_last($last)), $y(end($last)), 'now']]
+      [[$x(array_key_last($last)), $y(end($last)), '']]
     );
   }
 
   /**
-   * Returns a small line as SVG, with dots over it.
+   * Returns a small line as SVG, with the present marked on it.
    *
    * The line is drawn in its own units and stretched to fill its cell, which
    * would stretch a dot drawn with it into an oval, and the present sits on
    * the right-hand edge, where the drawing would cut a dot in half. So the
-   * dots are drawn in a frame around the drawing instead, measured in pixels
+   * marks are drawn in a frame around the drawing instead, measured in pixels
    * and placed by percentage: they stay round, and may reach past the edge.
+   *
+   * Each mark is a dot and, under it, a ring that spreads from it and fades,
+   * the way a ticker marks its newest point.
    *
    * @param int                              $width  The width of the line's units
    * @param int                              $height The height of the line's units
    * @param string                           $line   The line, as SVG in its own units
-   * @param array<array{float,float,string}> $dots   The dots, each a position in
+   * @param array<array{float,float,string}> $dots   The marks, each a position in
    *                                                 the line's units and a class
+   *                                                 giving its colour, or none
    */
   public static function frame(int $width, int $height, string $line, array $dots): string {
     $svg = '<svg aria-hidden="true"><svg viewBox="0 0 ' . $width . ' ' . $height
       . '" preserveAspectRatio="none" width="100%" height="100%">' . $line . '</svg>';
 
     foreach ($dots as [$x, $y, $class]) {
-      $svg .= '<circle class="' . $class . '" cx="' . round(100 * $x / $width, 2)
+      $at = rtrim(' ' . $class) . '" cx="' . round(100 * $x / $width, 2)
         . '%" cy="' . round(100 * $y / $height, 2) . '%" r="3.5"/>';
+
+      $svg .= '<circle class="ping' . $at . '<circle class="now' . $at;
     }
 
     return $svg . "</svg>\n";
