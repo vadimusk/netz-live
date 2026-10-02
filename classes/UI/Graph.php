@@ -70,6 +70,10 @@ enum Graph: int {
    * hydro and biomass, widen the way persistence does. Solar and wind are
    * wider at long reach than they were in the previous table, which was
    * measured on a forecast refetched after the fact and so flattered it.
+   *
+   * The countries and pumped storage are measured too, but left out, so their
+   * dashed lines run without a band: twelve bands laid over one another in a
+   * graph that size hide the lines they belong to.
    */
   private const UNCERTAINTY = [
     'lignite'    => [0.110, 0.197, 0.274, 0.344, 0.408, 0.465, 0.518, 0.566, 0.610, 0.651, 0.689, 0.724, 0.755, 0.784, 0.811, 0.835, 0.857, 0.878, 0.897, 0.913, 0.928, 0.942, 0.954, 0.964],

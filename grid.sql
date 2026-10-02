@@ -148,6 +148,18 @@ CREATE TABLE `forecast_quarter_hours` (
   -- the day-ahead price, which is settled rather than forecast, for quarter
   -- hours the record has not reached; null where it is not yet known
   `price` decimal(7,2) DEFAULT NULL,
+  -- the day-ahead scheduled exchange across each border, as net import;
+  -- null where it is not known. Luxembourg has none, sharing the bidding zone
+  `austria` decimal(5,2) DEFAULT NULL,
+  `belgium` decimal(5,2) DEFAULT NULL,
+  `czech_republic` decimal(5,2) DEFAULT NULL,
+  `denmark` decimal(5,2) DEFAULT NULL,
+  `france` decimal(5,2) DEFAULT NULL,
+  `netherlands` decimal(5,2) DEFAULT NULL,
+  `norway` decimal(5,2) DEFAULT NULL,
+  `poland` decimal(5,2) DEFAULT NULL,
+  `sweden` decimal(5,2) DEFAULT NULL,
+  `switzerland` decimal(5,2) DEFAULT NULL,
   PRIMARY KEY (`time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

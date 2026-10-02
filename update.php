@@ -10,6 +10,7 @@ use KateMorley\Grid\Data\Forecast;
 use KateMorley\Grid\Data\Frequency;
 use KateMorley\Grid\Data\Generation;
 use KateMorley\Grid\Data\Pricing;
+use KateMorley\Grid\Data\Schedules;
 use KateMorley\Grid\Data\Visits;
 use KateMorley\Grid\UI\Favicon;
 use KateMorley\Grid\UI\UI;
@@ -57,6 +58,12 @@ foreach ([
   // now, so losing it costs the dashed tail and nothing else
   'Updating forecast…   ' => function (Database $database) {
     Forecast::update($database);
+  },
+
+  // after the forecast, whose pacing leaves a minute since the flows were
+  // read, so the two batches of ENTSO-E requests do not share one
+  'Updating schedules…  ' => function (Database $database) {
+    Schedules::update($database);
   },
 
   'Updating visits…     ' => function (Database $database) {

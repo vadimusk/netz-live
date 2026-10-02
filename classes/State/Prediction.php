@@ -27,8 +27,10 @@ use KateMorley\Grid\Data\Forecast;
  * - **Coal and gas** take FOSSIL_SHARE of whatever the demand asks for beyond
  *   what solar and wind now give, since dispatchable plant is what answers a
  *   change in demand; the rest of the mix is carried forward.
- * - **The borders** take what is left, so that the equation the panel prints,
- *   demand = generation + transfers, holds of every estimated quarter hour.
+ * - **The borders and pumped storage** divide what is left between them, so
+ *   that the equation the panel prints, demand = generation + transfers, holds
+ *   of every estimated quarter hour: each border by its day-ahead schedule,
+ *   pumped storage by the price (see split()).
  * - **The carbon intensity** is moved by how much the estimated mix changes
  *   the calculated figure, rather than replaced by it: the official figure the
  *   solid line shows can sit tens of grams from the calculated one.
@@ -103,12 +105,7 @@ class Prediction {
     'gas'
   ];
 
-  /**
-   * The columns that take up the difference between the estimated generation
-   * and the estimated demand. Pumped storage is left out even though it counts
-   * among the transfers, because it answers to the price rather than to a
-   * surplus.
-   */
+  /** The borders, which with pumped storage make up the transfers. */
   private const INTERCONNECTORS = [
     'austria',
     'belgium',
@@ -124,15 +121,76 @@ class Prediction {
   ];
 
   /**
+   * How far each border's physical flow follows a change in its day-ahead
+   * schedule; a border missing here, Luxembourg, has no schedule and is
+   * carried forward.
+   *
+   * Fitted from October 2025 to September 2026 on the change in flow against
+   * the change in schedule, over every reach from a quarter hour to six hours.
+   * Fitted on alternate months instead, most move by a few hundredths, and the
+   * Czech border, the least steady, by a fifth. The links built
+   * to carry trade — the cables to Norway and Sweden, the Netherlands — follow
+   * it almost wholly. The meshed borders to the south and east follow it by
+   * half to three quarters, because power crossing them takes every path the
+   * network offers and part of it was traded between other countries: France
+   * least, at a half.
+   */
+  private const SCHEDULE_WEIGHTS = [
+    'austria'        => 0.58,
+    'belgium'        => 0.71,
+    'czech_republic' => 0.72,
+    'denmark'        => 0.71,
+    'france'         => 0.49,
+    'netherlands'    => 0.87,
+    'norway'         => 0.92,
+    'poland'         => 0.78,
+    'sweden'         => 0.90,
+    'switzerland'    => 0.57
+  ];
+
+  /**
+   * How far pumped storage moves, in gigawatts, for each euro per megawatt
+   * hour the day-ahead price moves: it pumps when power is cheap and generates
+   * when it is dear, and the price is settled the day before.
+   *
+   * Carried forward, as it was until September 2026, pumped storage was the
+   * largest unknown among the transfers: 1.1GW out an hour on and 4.0GW six
+   * hours on. Moved by the price it is 0.9GW and 2.0GW out, fitted on
+   * alternate months and tested on the others.
+   */
+  private const PRICE_WEIGHT = 0.046;
+
+  /**
+   * How far each part's own estimate is typically out an hour on, in
+   * gigawatts — the borders moved by their schedules, pumped storage by the
+   * price — measured over the same year. split() shares out what the parts
+   * leave by these, squared.
+   */
+  private const SPREAD = [
+    'austria'        => 0.25,
+    'belgium'        => 0.17,
+    'czech_republic' => 0.21,
+    'denmark'        => 0.31,
+    'france'         => 0.25,
+    'luxembourg'     => 0.05,
+    'netherlands'    => 0.37,
+    'norway'         => 0.09,
+    'poland'         => 0.22,
+    'sweden'         => 0.01,
+    'switzerland'    => 0.28,
+    'pumped'         => 0.88
+  ];
+
+  /**
    * Builds the predicted quarter hours, returning an array mapping times to
    * data.
    *
-   * @param int                            $time      The time of the newest
-   *                                                   confirmed quarter hour
-   * @param array<string,mixed>            $map       The newest confirmed row
-   * @param array<int,array<string,float>> $forecasts The forecasts, mapping
-   *                                                   times to columns
-   * @param int                            $now       The current time
+   * @param int                             $time      The time of the newest
+   *                                                    confirmed quarter hour
+   * @param array<string,mixed>             $map       The newest confirmed row
+   * @param array<int,array<string,?float>> $forecasts The forecasts, mapping
+   *                                                    times to columns
+   * @param int                             $now       The current time
    *
    * @return array<int,Datum>
    */
@@ -185,7 +243,7 @@ class Prediction {
           * ($forecasts[$t]['solar'] - $forecasts[$time]['solar']);
 
       self::dispatch($row, $map, $target);
-      self::balance($row, $target);
+      self::split($row, $map, $target, $forecasts[$time], $forecasts[$t]);
 
       $row['emissions'] = max(0, (int)round(
         (float)($map['emissions'] ?? 0) + Emissions::calculate($row) - $calculated
@@ -278,48 +336,104 @@ class Prediction {
   }
 
   /**
-   * Moves the interconnectors so that the estimated demand comes out, leaving
-   * the equation the panel prints — demand = generation + transfers — true of
-   * the predicted quarter hour as it is of the measured ones.
+   * Divides what the transfers have to carry between the borders and pumped
+   * storage, leaving the equation the panel prints — demand = generation +
+   * transfers — true of the predicted quarter hour as it is of the measured
+   * ones.
    *
-   * The difference is spread across the borders in proportion to what each is
-   * already carrying, since a surplus leaves along the lines already in use.
-   * The per-country figures this produces are not shown anywhere: the country
-   * table and the transfers graph are drawn from confirmed data only, and this
-   * shows up solely in the total.
+   * The total is settled by that equation; only its division is decided here.
+   * Each border first moves by the change in its day-ahead schedule, times
+   * how closely its flow follows the schedule, and pumped storage by the
+   * change in the price. What their sum leaves short of the total is then
+   * shared out by how far each part's own estimate is typically wrong,
+   * squared: the least certain parts take the most of it, which is the
+   * division that errs least over the whole if the parts err independently.
+   * Pumped storage, the least certain, takes a little over half.
+   *
+   * Until September 2026 the borders took the whole of it in proportion to
+   * what each was carrying, with pumped storage held — a split no better than
+   * holding every part where it was, which is why the countries were not drawn
+   * until then. Measured over October 2025 to September 2026 by building the
+   * estimate as here from every quarter hour as the anchor, the parts were
+   * 4.6GW out between them an hour on and 13.9GW six hours on; split like
+   * this, 3.0GW and 6.6GW, every border closer at every reach. The total is
+   * the same either way, and so is everything else on the page.
+   *
+   * @param array<string,mixed>  $row    The predicted row, modified in place
+   * @param array<string,mixed>  $anchor The last confirmed row
+   * @param float                $demand The estimated demand
+   * @param array<string,?float> $then   The forecast row for the anchor
+   * @param array<string,?float> $now    The forecast row being predicted
+   */
+  private static function split(
+    array &$row,
+    array $anchor,
+    float $demand,
+    array $then,
+    array $now
+  ): void {
+    $total = $demand - Kind::Generation->get((new Datum($row))->sources);
+    $parts = [];
+
+    foreach (self::INTERCONNECTORS as $column) {
+      $parts[$column] = (float)($anchor[$column] ?? 0);
+
+      // a border without a schedule at both ends is carried forward
+      if (isset(self::SCHEDULE_WEIGHTS[$column], $then[$column], $now[$column])) {
+        $parts[$column] += self::SCHEDULE_WEIGHTS[$column]
+          * ($now[$column] - $then[$column]);
+      }
+    }
+
+    $parts['pumped'] = (float)($anchor['pumped_generation'] ?? 0)
+      + (float)($anchor['pumped_consumption'] ?? 0);
+
+    if (isset($now['price'])) {
+      $parts['pumped'] += self::PRICE_WEIGHT
+        * ($now['price'] - (float)($anchor['price'] ?? 0));
+    }
+
+    $gap      = $total - array_sum($parts);
+    $variance = array_sum(array_map(fn ($spread) => $spread ** 2, self::SPREAD));
+
+    foreach ($parts as $part => $value) {
+      $parts[$part] = $value + $gap * self::SPREAD[$part] ** 2 / $variance;
+    }
+
+    foreach (self::INTERCONNECTORS as $column) {
+      $row[$column] = round($parts[$column], 3);
+    }
+
+    self::pump($row, $anchor, $parts['pumped']);
+  }
+
+  /**
+   * Sets pumped storage to a net figure, which the record keeps as two: what
+   * the fleet generated and, as a negative figure, what it drew. A change is
+   * taken first from whichever side it shrinks, so a fleet that was pumping
+   * and is estimated to pump less draws less rather than drawing as much and
+   * generating too.
    *
    * @param array<string,mixed> $row    The predicted row, modified in place
-   * @param float               $demand The estimated demand
+   * @param array<string,mixed> $anchor The last confirmed row
+   * @param float               $net    The estimated net generation
    */
-  private static function balance(array &$row, float $demand): void {
-    $sources = (new Datum($row))->sources;
+  private static function pump(array &$row, array $anchor, float $net): void {
+    $generation  = (float)($anchor['pumped_generation'] ?? 0);
+    $consumption = (float)($anchor['pumped_consumption'] ?? 0);
+    $change      = $net - $generation - $consumption;
 
-    // what the borders have to carry for that demand to come out, with pumped
-    // storage counted separately since it is carried rather than moved
-    $target = $demand
-      - Kind::Generation->get($sources)
-      - Source::Pumped->get($sources);
-
-    $current = 0;
-    $weights = 0;
-
-    foreach (self::INTERCONNECTORS as $column) {
-      $current += (float)($row[$column] ?? 0);
-      $weights += abs((float)($row[$column] ?? 0));
+    if ($change >= 0) {
+      $less         = min(-$consumption, $change);
+      $consumption += $less;
+      $generation  += $change - $less;
+    } else {
+      $less         = min($generation, -$change);
+      $generation  -= $less;
+      $consumption -= -$change - $less;
     }
 
-    $difference = $target - $current;
-
-    foreach (self::INTERCONNECTORS as $column) {
-      $value = (float)($row[$column] ?? 0);
-
-      // with every border sitting at zero there is no pattern to follow, so
-      // the difference is shared equally rather than divided by nothing
-      $share = $weights > 0
-        ? abs($value) / $weights
-        : 1 / count(self::INTERCONNECTORS);
-
-      $row[$column] = round($value + $difference * $share, 3);
-    }
+    $row['pumped_generation']  = round($generation, 3);
+    $row['pumped_consumption'] = round($consumption, 3);
   }
 }

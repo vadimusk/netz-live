@@ -227,10 +227,9 @@ class Graphs {
    *
    * Only the past day carries a prediction, and only for the graphs the
    * forecast actually informs: generation, the demand it is balanced against,
-   * and the carbon intensity computed from it. The price is settled a day ahead
-   * and needs no estimate, and the transfers graph is left out because its
-   * lines are per country: the prediction moves the borders only in total, so
-   * drawing them one by one would show a split nobody forecast.
+   * the carbon intensity computed from it, and the transfers, divided between
+   * the countries by their day-ahead schedules. The price is settled a day
+   * ahead and needs no estimate.
    *
    * @param Graph  $graph  The graph
    * @param Period $period The time period
@@ -240,7 +239,7 @@ class Graphs {
   private function predicted(Graph $graph, Period $period): array {
     if (
       $period !== Period::Day
-      || !in_array($graph, [Graph::Generation, Graph::Demand, Graph::Emissions], true)
+      || !in_array($graph, [Graph::Generation, Graph::Demand, Graph::Emissions, Graph::Transfers], true)
     ) {
       return [];
     }
@@ -509,8 +508,8 @@ class Graphs {
             ? 0.0
             : Graph::uncertainty($class, $step);
 
-          // a line with no measured uncertainty gets no band rather than a
-          // guessed one
+          // a line with no uncertainty in the table gets no band rather than
+          // a guessed one
           if ($width === null) {
             $band = null;
             break;

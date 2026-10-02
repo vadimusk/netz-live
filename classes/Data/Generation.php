@@ -241,7 +241,7 @@ class Generation {
    * asked for against the control area. Denmark is two bidding zones, whose
    * flows sum to the country's.
    */
-  private const TRANSFER_DOMAINS = [
+  public const TRANSFER_DOMAINS = [
     'austria'        => [Entsoe::CONTROL_AREA, ['10YAT-APG------L']],
     'belgium'        => [Entsoe::CONTROL_AREA, ['10YBE----------2']],
     'czech_republic' => [Entsoe::CONTROL_AREA, ['10YCZ-CEPS-----N']],

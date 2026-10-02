@@ -153,6 +153,57 @@ class Entsoe {
    * @throws DataException If the data was invalid
    */
   public static function readFlows(array $borders, int $from, ?int $to = null): array {
+    return self::readExchanges(['documentType' => 'A11'], $borders, $from, $to);
+  }
+
+  /**
+   * Reads the day-ahead scheduled commercial exchanges: what the market
+   * coupling settled the day before would cross each border, as distinct from
+   * what physically did.
+   *
+   * The borders are given and returned as for readFlows, except that these are
+   * traded between bidding zones, so the German side must be the DE-LU zone.
+   * The schedule set by the day-ahead auction is asked for alone rather than
+   * the total, which adds the intraday trades: those arrive through the day,
+   * and one can only be relied on to be there once it is published, where the
+   * day-ahead schedule is complete from the afternoon before.
+   *
+   * @param array<string,array{0:string,1:array<string>}> $borders
+   * @param int  $from The earliest Unix timestamp of interest
+   * @param ?int $to   The latest Unix timestamp of interest; defaults to now
+   *
+   * @return array<string,array<string,float>>
+   *
+   * @throws DataException If the data was invalid
+   */
+  public static function readSchedules(array $borders, int $from, ?int $to = null): array {
+    return self::readExchanges(
+      ['documentType' => 'A09', 'contract_MarketAgreement.Type' => 'A01'],
+      $borders,
+      $from,
+      $to
+    );
+  }
+
+  /**
+   * Reads a document describing what crosses each border, in either
+   * direction, and returns the net import per border as readFlows describes.
+   *
+   * @param array<string,string>                          $parameters The document parameters
+   * @param array<string,array{0:string,1:array<string>}> $borders
+   * @param int  $from The earliest Unix timestamp of interest
+   * @param ?int $to   The latest Unix timestamp of interest
+   *
+   * @return array<string,array<string,float>>
+   *
+   * @throws DataException If the data was invalid
+   */
+  private static function readExchanges(
+    array $parameters,
+    array $borders,
+    int   $from,
+    ?int  $to
+  ): array {
     $queries = [];
     $index   = [];
 
@@ -163,7 +214,7 @@ class Entsoe {
         ) {
           $index[count($queries)] = [$column, $neighbour . '/' . $direction];
           $queries[] = self::query(
-            ['documentType' => 'A11', 'in_Domain' => $in, 'out_Domain' => $out],
+            $parameters + ['in_Domain' => $in, 'out_Domain' => $out],
             $from,
             $to
           );

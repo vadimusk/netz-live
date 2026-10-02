@@ -6,6 +6,7 @@ use KateMorley\Grid\Data\Emissions;
 use KateMorley\Grid\Data\Forecast;
 use KateMorley\Grid\Data\Generation;
 use KateMorley\Grid\Data\Pricing;
+use KateMorley\Grid\Data\Schedules;
 use KateMorley\Grid\Data\Visits;
 use KateMorley\Grid\State\Datum;
 use KateMorley\Grid\State\Prediction;
@@ -44,7 +45,11 @@ class Database {
       Prediction::build(
         $time,
         $latestMap,
-        $this->getForecasts(array_merge(Forecast::KEYS, [Forecast::LOAD])),
+        $this->getForecasts(array_merge(
+          Forecast::KEYS,
+          [Forecast::LOAD, 'price'],
+          Schedules::keys()
+        )),
         time()
       ),
       Prediction::banded($time, time()),
@@ -587,11 +592,11 @@ class Database {
 
   /**
    * Returns the forecasts, as an array mapping times to an array mapping
-   * columns to values.
+   * columns to values, null where a value is not known.
    *
    * @param array<string> $columns The columns
    *
-   * @return array<int,array<string,float>>
+   * @return array<int,array<string,?float>>
    */
   public function getForecasts(array $columns): array {
     $rows = $this->connection->query(
@@ -605,8 +610,9 @@ class Database {
     while ($row = $rows->fetch_assoc()) {
       $time = strtotime($row['time'] . ' UTC');
 
+      // null stays null: a schedule or price not yet known is not a zero
       foreach ($columns as $column) {
-        $forecasts[$time][$column] = (float)$row[$column];
+        $forecasts[$time][$column] = $row[$column] === null ? null : (float)$row[$column];
       }
     }
 
