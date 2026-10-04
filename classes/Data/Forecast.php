@@ -5,8 +5,21 @@ namespace KateMorley\Grid\Data;
 use KateMorley\Grid\Database;
 
 /**
- * Reads the day-ahead forecast from Energy-Charts (https://api.energy-charts.info):
- * solar, both winds, and the demand.
+ * Reads the day-ahead forecast of solar, both winds and the demand: from
+ * ENTSO-E, where the operators file it, and from Energy-Charts
+ * (https://api.energy-charts.info) when ENTSO-E cannot be read.
+ *
+ * The two are the same figures. Energy-Charts republishes the operators'
+ * filing: compared over the week to 4 October 2026, the four series matched to
+ * two or three megawatts on average, against levels of tens of gigawatts, as
+ * long as ENTSO-E is asked for the control area rather than the DE-LU bidding
+ * zone, which adds Luxembourg. So the estimate, calibrated on Energy-Charts'
+ * copy, is unchanged by reading either. Energy-Charts was read alone until
+ * that day, when its API refused every request for hours and the forecast
+ * table ran down towards the end of the dashed line; ENTSO-E comes first now
+ * because it is the source, takes two requests rather than four paced ones,
+ * and leaves Energy-Charts' small allowance to the frequency and the carbon
+ * intensity, which have no other source.
  *
  * Only the weather-driven sources are forecast among the generation, because
  * only they have a forecast worth having: coal and gas are dispatched to meet
@@ -44,7 +57,7 @@ class Forecast {
    */
   public const LOAD = 'demand';
 
-  /** What Energy-Charts calls the demand. */
+  /** What Energy-Charts, and Entsoe::readForecasts, call the demand. */
   private const LOAD_TYPE = 'load';
 
   private const URL = 'https://api.energy-charts.info/v2/public_power_forecast';
@@ -88,8 +101,8 @@ class Forecast {
    */
   public static function update(Database $database): void {
     // The day-ahead forecast is published once a day, so reading it every
-    // five minutes spends Energy-Charts' rate limit (see PACE) for nothing.
-    // Twice an hour is plenty.
+    // five minutes would spend the platforms' allowances for nothing. Twice
+    // an hour is plenty.
     if (!Time::isHalfHourly(time())) {
       return;
     }
@@ -97,21 +110,14 @@ class Forecast {
     $from = time() - self::PAST;
     $to   = time() + self::FUTURE;
 
-    $series = [];
+    // said out loud, as the SMARD fallback is: a stand-in nobody notices is
+    // how a source stays broken without anyone knowing
+    try {
+      $series = self::complete(Entsoe::readForecasts($from, $to));
+    } catch (DataException $exception) {
+      echo '(Energy-Charts fallback: ' . $exception->getMessage() . ') ';
 
-    foreach (array_merge(self::KEYS, [self::LOAD_TYPE]) as $index => $type) {
-      if ($index > 0) {
-        sleep(self::PACE);
-      }
-
-      $series[$type] = self::read($type, $from, $to);
-
-      // a type that came back empty fails the step, leaving the forecast
-      // already stored to stand: written as zero, a missing solar series would
-      // be a midday collapse, and a missing demand a grid that had stopped
-      if (count($series[$type]) === 0) {
-        throw new DataException('No forecast values for ' . $type);
-      }
+      $series = self::readEnergyCharts($from, $to);
     }
 
     // only quarter hours every series reaches are written, for the same
@@ -149,8 +155,61 @@ class Forecast {
   }
 
   /**
-   * Reads one type, returning an array mapping normalised times to values in
-   * gigawatts.
+   * Returns a set of series if every type came back with values.
+   *
+   * A type that came back empty fails the read, leaving the forecast already
+   * stored to stand: written as zero, a missing solar series would be a midday
+   * collapse, and a missing demand a grid that had stopped.
+   *
+   * @param array<string,array<string,float>> $series The series, by type
+   *
+   * @return array<string,array<string,float>>
+   *
+   * @throws DataException If a type has no values
+   */
+  private static function complete(array $series): array {
+    foreach (array_merge(self::KEYS, [self::LOAD_TYPE]) as $type) {
+      if (count($series[$type] ?? []) === 0) {
+        throw new DataException('No forecast values for ' . $type);
+      }
+    }
+
+    return $series;
+  }
+
+  /**
+   * Reads every type from Energy-Charts, a type at a time (see PACE).
+   *
+   * @param int $from The start of the window
+   * @param int $to   The end of the window
+   *
+   * @return array<string,array<string,float>>
+   *
+   * @throws DataException If the data was invalid
+   */
+  private static function readEnergyCharts(int $from, int $to): array {
+    $series = [];
+
+    foreach (array_merge(self::KEYS, [self::LOAD_TYPE]) as $index => $type) {
+      if ($index > 0) {
+        sleep(self::PACE);
+      }
+
+      $series[$type] = self::read($type, $from, $to);
+
+      // checked as each arrives, so a type that fails spends no more of the
+      // allowance on the ones after it
+      if (count($series[$type]) === 0) {
+        throw new DataException('No forecast values for ' . $type);
+      }
+    }
+
+    return $series;
+  }
+
+  /**
+   * Reads one type from Energy-Charts, returning an array mapping normalised
+   * times to values in gigawatts.
    *
    * @param string $type The production type
    * @param int    $from The start of the window

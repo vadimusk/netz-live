@@ -81,6 +81,14 @@ class Entsoe {
     'B19' => 4
   ];
 
+  /** The forecast types read, by production type; the load has none. */
+  private const FORECAST_TYPES = [
+    'B16' => 'solar',
+    'B18' => 'wind_offshore',
+    'B19' => 'wind_onshore',
+    ''    => 'load'
+  ];
+
   /** The resolutions the platform publishes, in minutes. */
   private const RESOLUTIONS = [
     'PT15M' => 15,
@@ -131,6 +139,55 @@ class Entsoe {
     }
 
     return $result;
+  }
+
+  /**
+   * Reads the day-ahead forecasts the operators file for solar, both winds and
+   * the load, for the control area.
+   *
+   * Returns an array mapping 'solar', 'wind_onshore', 'wind_offshore' and
+   * 'load' to arrays mapping normalised times to gigawatts; a type the
+   * platform has not answered for is absent.
+   *
+   * @param int $from The earliest Unix timestamp of interest
+   * @param int $to   The latest Unix timestamp of interest
+   *
+   * @return array<string,array<string,float>>
+   *
+   * @throws DataException If the data was invalid
+   */
+  public static function readForecasts(int $from, int $to): array {
+    $bodies = self::fetch([
+      self::query(
+        ['documentType' => 'A69', 'processType' => 'A01', 'in_Domain' => self::CONTROL_AREA],
+        $from,
+        $to
+      ),
+      self::query(
+        ['documentType' => 'A65', 'processType' => 'A01', 'outBiddingZone_Domain' => self::CONTROL_AREA],
+        $from,
+        $to
+      )
+    ]);
+
+    $forecasts = [];
+
+    foreach ($bodies as $body) {
+      if ($body === null) {
+        continue;
+      }
+
+      // the load document carries no production type
+      foreach (self::series($body, 1000, false) as list($type, $inZone, $values)) {
+        $key = self::FORECAST_TYPES[$type] ?? null;
+
+        if ($key !== null) {
+          $forecasts[$key] = $values + ($forecasts[$key] ?? []);
+        }
+      }
+    }
+
+    return $forecasts;
   }
 
   /**
@@ -472,11 +529,21 @@ class Entsoe {
    * normalised time. Flow documents carry no production type, and report as
    * an empty one.
    *
+   * @param string $body    The response body
+   * @param float  $divisor What the published figures are divided by
+   * @param bool   $limited Whether a value held across points is dropped past
+   *                        HOLD_LIMIT; a forecast's are not, since a forecast
+   *                        is filed whole and a long hold in one is genuine
+   *
    * @return array<array{0:string,1:bool,2:array<string,float>}>
    *
    * @throws DataException If the data was invalid
    */
-  private static function series(string $body, float $divisor = 1000): array {
+  private static function series(
+    string $body,
+    float  $divisor = 1000,
+    bool   $limited = true
+  ): array {
     $document = new \DOMDocument();
 
     if (!@$document->loadXML($body)) {
@@ -552,7 +619,7 @@ class Entsoe {
         $steps = intdiv($until - $origin, $step * 60);
         $last  = null;
         $held  = 0;
-        $limit = self::HOLD_LIMIT[$type] ?? PHP_INT_MAX;
+        $limit = $limited ? (self::HOLD_LIMIT[$type] ?? PHP_INT_MAX) : PHP_INT_MAX;
 
         for ($index = 1; $index <= $steps; $index ++) {
           if (isset($points[$index])) {

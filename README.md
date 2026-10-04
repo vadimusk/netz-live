@@ -134,6 +134,7 @@ Read from here:
   Flows are used in preference to the scheduled commercial exchanges. Germany sits inside the Continental European synchronous grid, where power reaches a buyer along whichever lines carry it, so a sale to one neighbour can flow through another: measured over a day the two series agree on the country's overall balance to within a few hundred megawatts, but disagree per neighbour by a gigawatt or more, at times even in direction. Flows are what actually happened.
 
   They still trail the generation slightly, so they are written separately and the last known figures are carried forward over the quarter hours they don't reach, rather than holding the generation back.
+- **Day-ahead forecasts** of solar, both winds and the load, filed by the operators the day before, which the estimate is built on. Energy-Charts republishes the same figures — the two match to a few megawatts — and is read in their place when ENTSO-E cannot be.
 - **Day-ahead scheduled exchanges** across the same borders but Luxembourg, which shares the bidding zone, read by [Schedules](classes/Data/Schedules.php) twice an hour and kept beside the forecast. They are never shown as flows — the paragraph above is why — but a border's flow moves with its schedule, which is known the day before, so they are what the estimate divides the transfers between the countries by.
 
 ### [SMARD](https://www.smard.de/)
@@ -160,11 +161,11 @@ Carbon intensity is imported from Energy-Charts year by year, which reaches back
 
 ### [Energy-Charts](https://www.energy-charts.info/)
 
-Run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/). Three things are read from here, none of which ENTSO-E or SMARD publishes in a usable form:
+Run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/). Two things are read from here that neither ENTSO-E nor SMARD publishes in a usable form, and a third in reserve:
 
 - `/co2eq` — carbon intensity of German electricity generation
 - `/frequency` — grid frequency, at one-second resolution
-- `/v2/public_power_forecast` — the day-ahead forecast for solar, wind and demand
+- `/v2/public_power_forecast` — the day-ahead forecast for solar, wind and demand, when ENTSO-E's cannot be read
 
 It arrives around three hours after the fact, where the generation it describes is barely an hour old. Rather than show a stale figure beside a current mix, [Emissions](classes/Data/Emissions.php) fills the remaining quarter hours in from the generation mix itself, and the official figure overwrites the calculation as soon as it arrives.
 

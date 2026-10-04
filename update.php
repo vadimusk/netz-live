@@ -60,8 +60,9 @@ foreach ([
     Forecast::update($database);
   },
 
-  // after the forecast, whose pacing leaves a minute since the flows were
-  // read, so the two batches of ENTSO-E requests do not share one
+  // twenty-two requests to ENTSO-E on the two runs an hour that read it,
+  // which with the generation's twenty-five, the price's one and the
+  // forecast's two keeps a run to fifty of the platform's sixty a minute
   'Updating schedules…  ' => function (Database $database) {
     Schedules::update($database);
   },
