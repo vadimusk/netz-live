@@ -161,11 +161,12 @@ Carbon intensity is imported from Energy-Charts year by year, which reaches back
 
 ### [Energy-Charts](https://www.energy-charts.info/)
 
-Run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/). Two things are read from here that neither ENTSO-E nor SMARD publishes in a usable form, and a third in reserve:
+Run by the [Fraunhofer Institute for Solar Energy Systems ISE](https://www.ise.fraunhofer.de/). Two things are read from here that neither ENTSO-E nor SMARD publishes in a usable form, and two more in reserve:
 
 - `/co2eq` — carbon intensity of German electricity generation
 - `/frequency` — grid frequency, at one-second resolution
 - `/v2/public_power_forecast` — the day-ahead forecast for solar, wind and demand, when ENTSO-E's cannot be read
+- `/price` — the day-ahead price, for any quarter hour up to now that both SMARD and ENTSO-E leave empty
 
 It arrives around three hours after the fact, where the generation it describes is barely an hour old. Rather than show a stale figure beside a current mix, [Emissions](classes/Data/Emissions.php) fills the remaining quarter hours in from the generation mix itself, and the official figure overwrites the calculation as soon as it arrives.
 

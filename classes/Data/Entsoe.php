@@ -393,7 +393,9 @@ class Entsoe {
         // in places. Taking whichever came last, as this used to, gave the
         // right price on some days and the other one on the rest — 3, 13 and
         // 15 September among them. A series with no sequence at all is the
-        // only one in its document, as in the older years, and is taken.
+        // only one in its document, as in the older years, and is taken. A
+        // day can also carry the second alone — 10 October 2026 did — and
+        // then comes back empty, for Pricing to fill from elsewhere.
         if ($sequence !== null && $sequence !== 1) {
           continue;
         }
