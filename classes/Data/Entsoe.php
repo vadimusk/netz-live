@@ -157,7 +157,7 @@ class Entsoe {
    * @throws DataException If the data was invalid
    */
   public static function readForecasts(int $from, int $to): array {
-    $bodies = self::fetch([
+    return self::forecasts(self::fetch([
       self::query(
         ['documentType' => 'A69', 'processType' => 'A01', 'in_Domain' => self::CONTROL_AREA],
         $from,
@@ -168,8 +168,42 @@ class Entsoe {
         $from,
         $to
       )
-    ]);
+    ]));
+  }
 
+  /**
+   * Reads the intraday forecasts of solar and both winds, which the operators
+   * revise through the day, returned as readForecasts returns the day-ahead
+   * ones; there is no load among them.
+   *
+   * @param int $from The earliest Unix timestamp of interest
+   * @param int $to   The latest Unix timestamp of interest
+   *
+   * @return array<string,array<string,float>>
+   *
+   * @throws DataException If the data was invalid
+   */
+  public static function readIntradayForecasts(int $from, int $to): array {
+    return self::forecasts(self::fetch([
+      self::query(
+        ['documentType' => 'A69', 'processType' => 'A40', 'in_Domain' => self::CONTROL_AREA],
+        $from,
+        $to
+      )
+    ]));
+  }
+
+  /**
+   * Returns the forecast series in a set of response bodies, keyed as
+   * readForecasts describes.
+   *
+   * @param array<?string> $bodies The response bodies
+   *
+   * @return array<string,array<string,float>>
+   *
+   * @throws DataException If the data was invalid
+   */
+  private static function forecasts(array $bodies): array {
     $forecasts = [];
 
     foreach ($bodies as $body) {

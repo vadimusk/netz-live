@@ -113,7 +113,18 @@ class Forecast {
     // said out loud, as the SMARD fallback is: a stand-in nobody notices is
     // how a source stays broken without anyone knowing
     try {
-      $series = self::complete(Entsoe::readForecasts($from, $to));
+      $series = Entsoe::readForecasts($from, $to);
+
+      // filled before the check, so a day-ahead type missing from the whole
+      // window is filled rather than sent to Energy-Charts, which republishes
+      // the same gap
+      try {
+        self::fillFromIntraday($series, $from);
+      } catch (DataException $exception) {
+        echo '(no intraday forecast: ' . $exception->getMessage() . ') ';
+      }
+
+      $series = self::complete($series);
     } catch (DataException $exception) {
       echo '(Energy-Charts fallback: ' . $exception->getMessage() . ') ';
 
@@ -175,6 +186,58 @@ class Forecast {
     }
 
     return $series;
+  }
+
+  /**
+   * Fills the quarter hours up to now that the day-ahead forecast of solar or
+   * wind leaves empty from the intraday one.
+   *
+   * The day-ahead forecast is the one the estimate is calibrated on, but the
+   * operators do not always file it: on 24 October 2026 neither ENTSO-E nor
+   * Energy-Charts, which republishes it, had solar or onshore wind for the
+   * day, so the table held no row for it and no estimate was drawn at all.
+   * The intraday forecast, revised through the day, was there for both. It is
+   * read only when a quarter hour up to now is missing, so on an ordinary day,
+   * when the day-ahead forecast is complete, nothing more is asked for; and
+   * then it fills every gap the demand forecast spans, the hours ahead too,
+   * since the next read is half an hour away and the estimate runs to now.
+   *
+   * @param array<string,array<string,float>> $series The series, by type,
+   *                                                  modified in place
+   * @param int                               $from   The start of the window
+   *
+   * @throws DataException If the intraday forecast could not be read
+   */
+  private static function fillFromIntraday(array &$series, int $from): void {
+    $now    = Time::normaliseUnix(intdiv(time(), 900) * 900, 15);
+    $gaps   = [];
+    $behind = false;
+
+    foreach (array_keys($series[self::LOAD_TYPE] ?? []) as $time) {
+      foreach (self::KEYS as $type) {
+        if (!isset($series[$type][$time])) {
+          $gaps[$type][$time] = true;
+          $behind = $behind || $time <= $now;
+        }
+      }
+    }
+
+    if (!$behind) {
+      return;
+    }
+
+    $filled = [];
+
+    foreach (Entsoe::readIntradayForecasts($from, time() + self::FUTURE) as $type => $values) {
+      foreach ($values as $time => $value) {
+        if (isset($gaps[$type][$time])) {
+          $series[$type][$time] = $value;
+          $filled[$time] = true;
+        }
+      }
+    }
+
+    echo '(' . count($filled) . ' quarter hours from the intraday forecast) ';
   }
 
   /**
