@@ -24,7 +24,15 @@ class PieChart {
     $generationPower      = Value::formatTotalPower($generation, $locale);
     $generationPercentage = Value::formatShare($generation, $demand, $locale);
 
-    echo '<div class="pie-chart"><div><div>';
+    echo '<div class="pie-chart">';
+
+    // a copy of the chart, blurred under it, so that its colours light the
+    // background around it (see grid.css)
+    echo '<svg class="glow" viewBox="-1 -1 2 2" aria-hidden="true">';
+    self::outputRings($sources, $locale);
+    echo '</svg>';
+
+    echo '<div><div>';
     echo I18n::t('kind.generation', $locale);
     echo '</div><div class="generation"></div><div><span>';
     echo $generationPower;
@@ -36,6 +44,18 @@ class PieChart {
     echo $generationPercentage;
     echo '">';
 
+    self::outputRings($sources, $locale);
+
+    echo "</svg></div>\n";
+  }
+
+  /**
+   * Outputs both rings: the sources outside, their kinds inside.
+   *
+   * @param Sources $sources The sources
+   * @param string  $locale  The locale ('de' or 'en')
+   */
+  private static function outputRings(Sources $sources, string $locale): void {
     self::outputRing(
       $sources,
       Kind::Generation->sources(),
@@ -51,8 +71,6 @@ class PieChart {
       self::OUTER_RADIUS,
       $locale
     );
-
-    echo "</svg></div>\n";
   }
 
   /**

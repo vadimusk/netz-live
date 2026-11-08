@@ -49,6 +49,8 @@
   --key-line: #999;
   --table-stripe: #f8f8f8;
   --stale: #b0640a;
+  --glow-chart: 0.4;
+  --glow-card: 14%;
 }
 
 @media screen and (min-width:840px) {
@@ -103,6 +105,8 @@
     --graph-highlight: #fff1;
     --key-line: #666;
     --stale: #e0a24a;
+    --glow-chart: 0.65;
+    --glow-card: 22%;
     --unit-opacity: 0.6;
     --table-stripe: #181818;
   }
@@ -138,6 +142,9 @@ body {
 }
 
 header {
+  /* above the live pie chart, whose border and glow reach up behind it */
+  position: relative;
+  z-index: 2;
   width: 100%;
   max-width: 1280px;
   margin-inline: auto;
@@ -284,10 +291,16 @@ path {
   }
 }
 
+/* Unlike upstream's, the section does not clip what overflows it. The clip
+   hid the pie chart's border where, on middling screens, it reaches above
+   the panel into the subtitle; but it also cut the chart's glow off in
+   straight lines, at the sides on a phone and along the top on a tablet.
+   The header is raised over the chart instead (see header), so the border,
+   the colour of the page, passes under the subtitle unseen, and the glow
+   lights the page behind it. */
 #live {
   display: grid;
   gap: var(--gap);
-  overflow: hidden;
 
   > div {
     grid-column: 1 / -1;
@@ -1174,6 +1187,12 @@ dl {
   }
 
   #live & {
+    /* above the cards beside it, so its glow falls across their edges rather
+       than stopping at them: one browser paints a later card over a chart
+       that only isolates itself, another does not. Only this chart: the
+       ones in the panels below would rise over the sticky tabs */
+    position: relative;
+    z-index: 1;
     grid-row: 3;
 
     @media screen and (max-width:767px) {
@@ -1442,4 +1461,30 @@ dialog {
     stroke-width: 4;
     stroke-linecap: butt;
   }
+}
+
+/* The coloured elements cast a soft light onto the background around them.
+   The pie chart's comes from a blurred copy of the chart under it, so its
+   colours are the mix's own: yellow round a sunny midday, brown and red
+   round a night on coal and gas. The cards of sources glow more faintly in
+   their kind's colour, so the chart stays the one thing that stands out. On
+   the light theme the same light reads as a coloured shadow, and is
+   weaker. */
+.pie-chart {
+  /* a stacking context of its own, so the blurred copy, which as filtered
+     content would otherwise paint above the chart, sits under the chart and
+     over the chart's background */
+  isolation: isolate;
+
+  > .glow {
+    position: relative;
+    z-index: -1;
+    filter: blur(34px) saturate(1.4);
+    opacity: var(--glow-chart);
+    pointer-events: none;
+  }
+}
+
+table:is(.fossils, .renewables, .others, .storage) {
+  box-shadow: 0 0 28px 0 color-mix(in srgb, currentColor var(--glow-card), transparent);
 }
