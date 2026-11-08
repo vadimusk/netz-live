@@ -72,11 +72,9 @@ The live deployment dumps the database nightly to `/root/backups` via `/usr/loca
 
 ### Fonts
 
-The site is set in [IBM Plex Sans](https://github.com/IBM/plex), subset from the official variable font to the characters these pages actually print and served from `public/ibm-plex-sans.woff2` (26 KB). It is licensed under the SIL Open Font License, a copy of which is in `public/IBM-PLEX-LICENCE.txt`.
+The site is set in [Proza](https://www.fontspring.com/fonts/bureau-roffa/proza) by Bureau Roffa, Light and Regular, as the upstream project is. These are commercial fonts, so — as upstream's — they are not included in this repository: the licence forbids distributing them with a website's source. Webfont licences can be bought from Fontspring, where Proza Regular is free and Light is not; the site expects them as `public/proza-light.woff2` and `public/proza-regular.woff2`.
 
-Two earlier attempts are worth recording, because both failed for reasons that only show up on the page. Proza Libre, the free version of the commercial Proza the upstream project uses, has no weight below 400, so every page read heavier than upstream, whose body text is 300. Source Sans 3 fixed the weight but draws a visibly different question mark, which is hard to place on its own and unmistakable once several help icons sit on screen together.
-
-IBM Plex Sans avoids both: it is variable, so one file covers 300 for the body and 400 for the headings, and its figures are tabular by default — every digit the same width — which is what keeps the columns of numbers from shuffling as the data updates. The width axis is pinned and the weight axis clipped to the range in use, and the subset carries the German diacritics, the euro sign, the true minus and the subscript two of CO₂, the last of which Google's own Latin subset leaves out.
+Without them the pages fall back to the system's sans serif, as upstream's do. Until November 2026 the site was set in [IBM Plex Sans](https://github.com/IBM/plex) instead, chosen after two failed attempts at a free stand-in for Proza: Proza Libre, its free version, has no weight below 400, so every page read heavier than upstream, whose body text is 300; and Source Sans 3 draws a visibly different question mark, unmistakable once several help icons sit on screen together. Plex fixed both, but it was never Proza, and the difference showed on every page.
 
 ### Cloudflare
 

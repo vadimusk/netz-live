@@ -4,6 +4,10 @@
 /public/en/index.html
 /public/sitemap.xml
 /public/google*.html
+
+# Proza is a commercial font, licensed to this site only: its licence forbids
+# redistributing it with the site's source, so the files are deployed by hand
+/public/proza-*.woff2
 .DS_Store
 
 # Agent instructions are kept local, never committed: they reference the

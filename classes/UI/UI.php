@@ -95,7 +95,8 @@ class UI {
     <link rel="alternate" hreflang="de" href="<?= self::BASE_URL ?>">
     <link rel="alternate" hreflang="en" href="<?= self::BASE_URL ?>en/">
     <link rel="alternate" hreflang="x-default" href="<?= self::BASE_URL ?>">
-    <link rel="preload" href="<?= $root ?>ibm-plex-sans.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="<?= $root ?>proza-light.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="<?= $root ?>proza-regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="<?= $root ?>grid.css?<?= $stylesheetModified ?>" type="text/css">
     <link rel="icon" href="<?= $root ?>favicon.png" type="image/png">
     <link rel="icon" href="<?= $root ?>favicon.svg?<?= floor(time() / 300) ?>" type="image/svg+xml">
