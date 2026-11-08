@@ -69,7 +69,7 @@ const HELP = {
     time: '<p>Alle Daten liegen im Viertelstundenraster vor, entsprechend der Auflösung der zugrundeliegenden Marktdaten.</p><p>Die grenzüberschreitenden Lastflüsse werden erst mit einigen Stunden Verzug veröffentlicht. Angezeigt wird deshalb die jüngste Viertelstunde, für die alle Werte — Erzeugung, Flüsse, Preis und Emissionen — vollständig vorliegen.</p>',
     price: '<p>Der angezeigte Preis ist der deutsch-luxemburgische Day-Ahead-Auktionspreis, wie er von der Bundesnetzagentur über SMARD.de veröffentlicht wird. Er spiegelt den Großhandelspreis wider, zu dem Strom für den jeweiligen Zeitraum am Vortag gehandelt wurde.</p><p>Bei hoher Einspeisung aus Wind- und Solaranlagen und gleichzeitig niedriger Nachfrage kann der Preis auf null oder sogar negative Werte fallen.</p>',
     emissions: '<p>Die Verbrennung von Braunkohle, Steinkohle, Erdgas und Biomasse setzt Kohlendioxid frei. Dieser Wert schätzt die CO₂-Intensität der deutschen Stromerzeugung auf Basis des aktuellen Erzeugungsmixes.</p><p>Die Farbe richtet sich nach der Bandbreite des deutschen Netzes selbst: im vergangenen Jahr lag die Intensität zwischen 94 und 766g/kWh bei einem Median von 382. Je ein Drittel der Zeit lag sie unter 300 beziehungsweise über 450g/kWh — daran orientieren sich die Stufen.</p><ul><li class="low"><span>Niedrig (≤300g/kWh)</span></li><li class="medium"><span>Mittel (≤450g/kWh)</span></li><li class="high"><span>Hoch (>450g/kWh)</span></li></ul>',
-    now: '<p>Hier steht die Viertelstunde, die gerade läuft. Die Felder darüber zeigen die letzte, die die Netzbetreiber gemeldet haben; mit dem Schalter anstelle der Uhrzeit lassen sie sich auf jetzt umstellen.</p><p>Der Bedarf für jetzt ist geschätzt: Er wird von der letzten gemeldeten Viertelstunde aus mit der Day-Ahead-Prognose fortgeschrieben. Eine solche Schätzung liegt eine Stunde voraus typischerweise rund 0,6 Gigawatt neben dem Bedarf, der später gemeldet wird, sechs Stunden voraus rund 1,5. In der kleinen Linie ist der geschätzte Teil gestrichelt.</p><p>Der Preis ist dagegen keine Schätzung. Der Day-Ahead-Preis wird am Vortag in der Auktion festgelegt und steht daher schon fest, auch solange die übrigen Daten noch fehlen; seine Linie ist deshalb bis jetzt durchgezogen.</p>',
+    now: '<p>Hier steht die Viertelstunde, die gerade läuft. Die Werte und das Diagramm darüber zeigen die letzte, die die Netzbetreiber gemeldet haben.</p><p>Der Bedarf für jetzt ist geschätzt: Er wird von der letzten gemeldeten Viertelstunde aus mit der Day-Ahead-Prognose fortgeschrieben. Eine solche Schätzung liegt eine Stunde voraus typischerweise rund 0,6 Gigawatt neben dem Bedarf, der später gemeldet wird, sechs Stunden voraus rund 1,5. In der kleinen Linie ist der geschätzte Teil gestrichelt.</p><p>Der Preis ist dagegen keine Schätzung. Der Day-Ahead-Preis wird am Vortag in der Auktion festgelegt und steht daher schon fest, auch solange die übrigen Daten noch fehlen; seine Linie ist deshalb bis jetzt durchgezogen.</p>',
     frequency: '<p>Die Netzfrequenz ist der einzige gemessene Wert auf dieser Seite, der das Jetzt beschreibt: Er ist rund drei Minuten alt, während Erzeugung, Preis und Emissionen eine halbe Stunde zurückliegen. Der Bedarf für jetzt ist geschätzt, der Preis für jetzt am Vortag festgelegt.</p><p>Im europäischen Verbundnetz drehen sich alle Generatoren im Gleichtakt. Liegt die Frequenz unter 50 Hz, wird in diesem Augenblick mehr Strom entnommen als erzeugt, und die Schwungmassen der Turbinen geben die Differenz ab, wobei sie langsamer werden. Über 50 Hz besteht ein Überschuss.</p><p>Der Wert gilt nicht für Deutschland allein, sondern für das gesamte kontinentaleuropäische Synchrongebiet von Portugal bis Polen — dort wird überall dieselbe Frequenz gemessen.</p><ul><li class="low"><span>Normal (±20 mHz)</span></li><li class="medium"><span>Erhöht (±50 mHz)</span></li><li class="high"><span>Angespannt (>50 mHz)</span></li></ul>',
     demand: '<p>Der Bedarf ist die Summe aus inländischer Erzeugung und dem Nettoimport aus dem Ausland. Da das Netz ausgeglichen sein muss, entspricht der Bedarf stets der erzeugten Leistung zuzüglich der importierten (oder abzüglich der exportierten) Leistung.</p>',
     generation: '<p>Der überwiegende Teil des in Deutschland verbrauchten Stroms wird von Kraftwerken im Inland erzeugt. Diese nutzen drei Arten von Energiequellen:</p><p>Fossile Energien sind die Überreste urzeitlicher Pflanzen und Tiere. Ihre Verbrennung setzt Kohlendioxid und andere Schadstoffe frei und verschärft die Klimakrise.</p><p>Erneuerbare Energien werden auf natürliche Weise rasch wieder aufgefüllt. Der Ersatz fossiler Energien durch Erneuerbare senkt die Kohlendioxidemissionen erheblich.</p><p>Sonstige Quellen können gegenüber fossilen Energien vorzuziehen sein, haben aber eigene unerwünschte Effekte, etwa im Fall von Abfall- oder Biomasseverbrennung.</p>',
@@ -101,7 +101,7 @@ const HELP = {
     time: '<p>All the data comes at quarter-hourly resolution, matching the underlying market data.</p><p>Cross-border flows are published a few hours after the fact, so what is shown is the most recent quarter hour for which every figure — generation, flows, price and emissions — is complete.</p>',
     price: '<p>The price shown is the German-Luxembourg (DE-LU) day-ahead auction price, as published by the Bundesnetzagentur via SMARD.de. It reflects the wholesale price at which electricity for each period was traded the day before.</p><p>When wind and solar output is high and demand is low, the price can fall to zero or even go negative.</p>',
     emissions: '<p>Burning lignite, hard coal, gas, and biomass produces carbon dioxide. This figure estimates the carbon intensity of German electricity generation from the current generation mix.</p><p>The colour follows the German grid\'s own range rather than a fixed target: over the past year the intensity ran from 94 to 766g/kWh with a median of 382, spending about a third of the time below 300 and a third above 450, which is where the levels sit.</p><ul><li class="low"><span>Low (≤300g/kWh)</span></li><li class="medium"><span>Medium (≤450g/kWh)</span></li><li class="high"><span>High (>450g/kWh)</span></li></ul>',
-    now: '<p>This is the quarter hour running now. The panel above shows the last one the grid operators have reported; the switch in place of its time turns it to now.</p><p>Demand now is estimated: it is carried forward from the last reported quarter hour using the day-ahead forecast. Such an estimate is typically about 0.6 gigawatts from the demand later reported an hour ahead, and about 1.5 six hours ahead. In the small line, the estimated part is dashed.</p><p>The price is not an estimate. The day-ahead price is set at auction the day before, so it is already fixed even while the rest of the data has yet to arrive, which is why its line runs solid right up to now.</p>',
+    now: '<p>This is the quarter hour running now. The figures and the chart above show the last one the grid operators have reported.</p><p>Demand now is estimated: it is carried forward from the last reported quarter hour using the day-ahead forecast. Such an estimate is typically about 0.6 gigawatts from the demand later reported an hour ahead, and about 1.5 six hours ahead. In the small line, the estimated part is dashed.</p><p>The price is not an estimate. The day-ahead price is set at auction the day before, so it is already fixed even while the rest of the data has yet to arrive, which is why its line runs solid right up to now.</p>',
     frequency: '<p>Grid frequency is the only measured figure on this page that describes now: it is around three minutes old, where generation, price and emissions are half an hour behind. Demand now is estimated, and the price now was set the day before.</p><p>Across the European interconnected grid every generator turns in step. Below 50 Hz more power is being drawn than generated at this instant, and the spinning mass of the turbines makes up the difference as it slows. Above 50 Hz there is a surplus.</p><p>The figure is not for Germany alone but for the whole Continental European synchronous area, from Portugal to Poland, where the same frequency is measured everywhere.</p><ul><li class="low"><span>Normal (±20 mHz)</span></li><li class="medium"><span>Elevated (±50 mHz)</span></li><li class="high"><span>Strained (>50 mHz)</span></li></ul>',
     demand: "<p>Demand is the sum of domestic generation and net imports from abroad. As the grid is balanced, demand always equals the power being generated plus power being imported (or minus power being exported).</p>",
     generation: '<p>Most of the electricity used in Germany is generated by power stations within the country. These use three types of source:</p><p>Fossil fuels are the remains of ancient plants and animals. Burning them releases carbon dioxide and other pollutants, worsening the climate crisis.</p><p>Renewables are resources that are rapidly replenished naturally. Replacing fossil fuels with renewables dramatically reduces carbon dioxide emissions.</p><p>Other sources may be preferable to fossil fuels but have their own unwanted effects, such as those from waste incineration or biomass combustion.</p>',
@@ -178,38 +178,8 @@ function addGraphListeners() {
   })
 }
 
-/**
- * Shows the panel for the moment chosen with the switch in place of its time:
- * the last reported quarter hour, or the one running now.
- *
- * @param {boolean} [now] `true` for now, `false` for reported; left out, it
- *                        keeps whichever is shown, as after the page updates
- */
-function showMoment(now) {
-  let live = document.querySelector('#live')
-
-  // without an estimate there is no now to show, whatever was chosen before
-  if (!live.querySelector('.estimated')) {
-    now = false
-  }
-
-  live.classList.toggle('showing-now', now ?? live.classList.contains('showing-now'))
-
-  live.querySelectorAll('.switch button').forEach(button => button.setAttribute(
-    'aria-pressed',
-    String((button.dataset.moment === 'now') === live.classList.contains('showing-now'))
-  ))
-}
-
 /** Handles a click by showing a help dialog if appropriate. */
 function handleClick(e) {
-  let moment = e.target.closest('.switch button')
-
-  if (moment) {
-    showMoment(moment.dataset.moment === 'now')
-    return
-  }
-
   let helpKey = e.target.dataset.help
 
   if (helpKey) {
@@ -396,8 +366,6 @@ function update(unscheduled) {
         hideGraphKey()
 
         addGraphListeners()
-
-        showMoment()
       }
     })
   }

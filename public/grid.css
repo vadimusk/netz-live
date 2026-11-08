@@ -284,44 +284,20 @@ path {
     grid-column: 1 / -1;
   }
 
-  /* The panel is drawn twice, for the last reported quarter hour and for the
-     one running now, and the switch in place of the time shows one or the
-     other. Estimated figures are outlined and underlined dashed, as the
-     estimate is drawn in the graphs; the pie chart follows the switch. */
-  > .reported, > .estimated {
+  > .reported {
     display: grid;
     grid-row: 1;
     gap: var(--gap);
   }
 
-  > .estimated, > .pie-chart.estimated {
-    display: none;
-  }
-
-  &.showing-now {
-    > .reported, > .pie-chart:not(.estimated) {
-      display: none;
-    }
-
-    > .estimated, > .pie-chart.estimated {
-      display: grid;
-    }
-  }
-
-  > .estimated dl {
-    outline: 1px dashed var(--graph-axis);
-    outline-offset: -1px;
-  }
-
-  /* the note under the present's time is longer than the age it replaces,
-     and on a phone it may wrap rather than widen the time column */
-  @media screen and (max-width:459px) {
-    > .estimated .age {
-      max-width: 6.5em;
-      margin-inline: auto;
-      white-space: normal;
-      line-height: 1.2;
-    }
+  /* On a phone the first screen holds what upstream's does: the two rows of
+     figures and the whole pie chart, which takes the second row (see
+     .pie-chart). The band describing now follows the chart rather than
+     coming between, since it is the chart that shows the whole mix at a
+     glance */
+  @media screen and (max-width:767px) {
+    > .now-band { grid-row: 3; }
+    > .sources  { grid-row: 4; }
   }
 
   @media screen and (min-width:768px) {
@@ -331,7 +307,7 @@ path {
   @media screen and (min-width:840px) {
     grid-template-columns: 1fr calc(2 * var(--pie-chart-radius) + 4rem) 1fr;
 
-    > .reported, > .estimated {
+    > .reported {
       grid-template-columns: 1fr 1fr;
     }
   }
@@ -1136,61 +1112,6 @@ dl {
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 
-/* the switch between the reported quarter hour and the present one, in
-   place of the time; the pressed side is the one the panel shows */
-.switch {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 999px;
-  background: var(--background);
-  font-size: 0.8em;
-
-  button {
-    padding: 0.25em 0.7em;
-    border: 0;
-    border-radius: 999px;
-    background: none;
-    color: inherit;
-    font: inherit;
-    white-space: nowrap;
-    opacity: 0.55;
-    cursor: pointer;
-
-    &[aria-pressed="true"] {
-      background: var(--content-background);
-      box-shadow: 0 0 0 1px var(--graph-axis);
-      opacity: 1;
-    }
-
-    &:focus-visible {
-      outline: 2px solid currentColor;
-      outline-offset: 1px;
-    }
-
-    abbr {
-      font-size: inherit;
-      opacity: 1;
-    }
-  }
-
-  /* on a phone the time column has room for one short word, so the two sides
-     stack and the present loses its time, which the band below shows large */
-  @media screen and (max-width:459px) {
-    flex-direction: column;
-    border-radius: 0.9em;
-
-    button {
-      padding: 0.2em 0.6em;
-      border-radius: 0.8em;
-    }
-
-    .at {
-      display: none;
-    }
-  }
-}
-
 /* an estimated figure, underlined dashed as the estimate is drawn dashed */
 .est {
   text-decoration: underline dashed;
@@ -1245,6 +1166,10 @@ dl {
 
   #live & {
     grid-row: 3;
+
+    @media screen and (max-width:767px) {
+      grid-row: 2;
+    }
 
     @media screen and (max-width:839px) {
       place-self: start center;

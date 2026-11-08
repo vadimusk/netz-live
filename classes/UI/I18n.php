@@ -29,10 +29,7 @@ class I18n {
       'status.price'      => 'Preis',
       'status.emissions' => 'Emissionen',
 
-      'now.note'          => 'geschätzt · Preis steht fest',
       'now.label'         => 'Jetzt',
-      'now.button'        => 'jetzt',
-      'now.switch'        => 'Zeitpunkt',
       'now.estimated'     => 'geschätzt',
       'now.none'          => 'keine Schätzung',
       'now.priceFixed'    => 'Day-Ahead, steht fest',
@@ -121,10 +118,7 @@ class I18n {
       'status.price'      => 'Price',
       'status.emissions' => 'Emissions',
 
-      'now.note'          => 'estimated · price is fixed',
       'now.label'         => 'Now',
-      'now.button'        => 'now',
-      'now.switch'        => 'Moment',
       'now.estimated'     => 'estimated',
       'now.none'          => 'no estimate',
       'now.priceFixed'    => 'day-ahead, already fixed',
