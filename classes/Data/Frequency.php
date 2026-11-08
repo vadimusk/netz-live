@@ -3,19 +3,25 @@
 namespace KateMorley\Grid\Data;
 
 /**
- * Reads the grid frequency from Energy-Charts (https://api.energy-charts.info),
- * run by Fraunhofer ISE.
+ * Reads the grid frequency: the readings frequency.php has gathered from
+ * netzfrequenzmessung.de (see Netzfrequenzmessung), or, when there are none
+ * recent enough, the past hour from Energy-Charts
+ * (https://api.energy-charts.info), run by Fraunhofer ISE.
  *
  * Frequency is the one quantity on this site that describes now rather than a
- * quarter hour that has already finished. It is published at one-second
- * resolution and reaches the site around two and a half minutes after the
- * fact, where generation is half an hour behind.
+ * quarter hour that has already finished. The readings gathered here are
+ * seconds old when the page is built, where generation is half an hour
+ * behind; Energy-Charts publishes at one-second resolution but reaches the
+ * site around two and a half minutes after the fact.
  *
- * It is deliberately not stored. Averaging it into the quarter-hourly table
- * would destroy the second-by-second movement that makes it worth showing, and
- * the eleven years of history hold nothing to put in such a column. The page
- * is rebuilt every five minutes, so the figure is read fresh each time and
- * kept only for as long as it takes to render.
+ * Energy-Charts was the only source until its measurement stopped on 5
+ * November 2026. It is now asked only when the readings fail, which also
+ * leaves its small request allowance to the carbon intensity and the price.
+ *
+ * It is deliberately not stored in the database. Averaging it into the
+ * quarter-hourly table would destroy the second-by-second movement that makes
+ * it worth showing, and the eleven years of history hold nothing to put in
+ * such a column. Only the past hour is kept, for the sparkline.
  *
  * The value is not German. The whole Continental European synchronous area
  * turns in step, so Germany, France, Poland and Spain report the same number —
@@ -27,7 +33,16 @@ class Frequency {
   private const URL = 'https://api.energy-charts.info/frequency';
 
   /** The span read, in seconds: the hour behind the sparkline. */
-  private const PERIOD = 3600;
+  public const PERIOD = 3600;
+
+  /**
+   * How old the newest gathered reading may be before Energy-Charts is asked
+   * instead, in seconds.
+   *
+   * Readings arrive every ten seconds, so this is a dozen missed in a row:
+   * frequency.php has stopped running, or the service has stopped answering.
+   */
+  private const MEASURED_MAXIMUM_AGE = 120;
 
   /** The number of seconds to allow for a request. */
   private const TIMEOUT = 20;
@@ -38,10 +53,10 @@ class Frequency {
   /**
    * Where the last good reading is kept.
    *
-   * Energy-Charts rate-limits, and a single refused request would otherwise
-   * blank the band until the next run. The band carries the reading's own
-   * timestamp, so standing in with the last one is self-describing rather
-   * than a claim about now.
+   * Energy-Charts rate-limits, and when the gathered readings have stopped as
+   * well, a single refused request would otherwise blank the band until the
+   * next run. The band carries the reading's own timestamp, so standing in
+   * with the last one is self-describing rather than a claim about now.
    */
   private const CACHE = '/var/lib/netz-live/frequency.json';
 
@@ -93,28 +108,58 @@ class Frequency {
    */
   public static function read(): self {
     try {
-      $reading = self::fetch();
-
-      self::store($reading);
-
-      return $reading;
+      $reading = self::measured();
     } catch (DataException $exception) {
-      $cached = self::cached();
-
-      if ($cached === null) {
-        throw $exception;
-      }
-
       // said out loud for the same reason the SMARD fallback is: a stand-in
       // nobody notices is how a source stays broken without anyone knowing
-      echo '(cached: ' . $exception->getMessage() . ') ';
+      echo '(Energy-Charts fallback: ' . $exception->getMessage() . ') ';
 
-      return $cached;
+      try {
+        $reading = self::fetch();
+      } catch (DataException $exception) {
+        $cached = self::cached();
+
+        if ($cached === null) {
+          throw $exception;
+        }
+
+        echo '(cached: ' . $exception->getMessage() . ') ';
+
+        return $cached;
+      }
     }
+
+    self::store($reading);
+
+    return $reading;
   }
 
   /**
-   * Fetches the past hour.
+   * Returns the past hour of the readings frequency.php has gathered.
+   *
+   * @throws DataException If there is no recent reading
+   */
+  private static function measured(): self {
+    $readings = Netzfrequenzmessung::readings();
+
+    if (count($readings) === 0) {
+      throw new DataException('No readings from netzfrequenzmessung.de');
+    }
+
+    $latest = array_key_last($readings);
+    $age    = time() - $latest;
+
+    if ($age > self::MEASURED_MAXIMUM_AGE) {
+      throw new DataException(
+        'Newest reading from netzfrequenzmessung.de is ' . $age . ' seconds old'
+      );
+    }
+
+    return new self($readings[$latest], $latest, self::reduce($readings));
+  }
+
+  /**
+   * Fetches the past hour from Energy-Charts.
    *
    * @throws DataException If the data was invalid
    */
@@ -138,8 +183,6 @@ class Frequency {
 
     $body = curl_exec($handle);
     $code = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-
-    curl_close($handle);
 
     if ($code !== 200 || !is_string($body)) {
       throw new DataException('Request failed with status ' . $code);
@@ -236,10 +279,10 @@ class Frequency {
    * Reduces a second-by-second series to a fixed number of points by
    * averaging within equal buckets.
    *
-   * An hour is 3600 readings and the sparkline is a couple of hundred pixels
-   * wide, so drawing them all would spend bytes on detail no one can see. The
-   * mean is used rather than a sample, so that a brief excursion still bends
-   * the line rather than being missed between samples.
+   * An hour is up to 3600 readings and the sparkline is a couple of hundred
+   * pixels wide, so drawing them all would spend bytes on detail no one can
+   * see. The mean is used rather than a sample, so that a brief excursion
+   * still bends the line rather than being missed between samples.
    *
    * @param array<int,float> $values The values, keyed by timestamp
    *
