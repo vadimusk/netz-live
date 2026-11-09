@@ -56,7 +56,7 @@ Set up a cron job to execute the `update.php` script (using the [PHP CLI SAPI](h
 
 The script outputs details of the update process to standard output, and details of errors to standard error. An error with an individual data source does not abort the rest of the update process.
 
-[frequency.php](frequency.php) gathers the grid frequency and needs a cron job of its own, every minute, as the same user: each run takes six readings ten seconds apart into `/var/lib/netz-live/`, and prints a line only when one fails. Without it, or without `NETZFREQUENZMESSUNG_NR`, the frequency comes from Energy-Charts.
+[frequency.php](frequency.php) gathers the grid frequency and needs a cron job of its own, every minute, as the same user: each run takes six readings ten seconds apart into `/var/lib/netz-live/`, and prints a line only when one fails. Without it, or without `NETZFREQUENZMESSUNG_NR`, the frequency comes from Energy-Charts, with Gridradar behind it where `GRIDRADAR_TOKEN` is set.
 
 ### Monitoring
 
@@ -178,11 +178,15 @@ The emission factors were calibrated by fitting the official series against the 
 
 ### [netzfrequenzmessung.de](https://www.netzfrequenzmessung.de/)
 
-The grid frequency, measured by Dr. Gobmaier GmbH with meters of its own and read with an access number the operator issued to this site for non-commercial use (`NETZFREQUENZMESSUNG_NR`). Energy-Charts was the source until its measurement stopped on 5 November 2026, and is now asked only when these readings stop.
+The grid frequency, measured by Dr. Gobmaier GmbH with meters of its own and read with an access number the operator issued to this site for non-commercial use (`NETZFREQUENZMESSUNG_NR`). Energy-Charts was the source until its measurement stopped for four days from 5 November 2026, and is now asked only when these readings stop.
 
-**Grid frequency** is the only measured figure on the page describing now rather than a finished quarter hour — the band under the panel, below the pie chart on a phone, shows demand now, which is estimated, beside the price now, which was set the day before — and the only one never stored in the database: averaging it into the quarter-hourly table would destroy the second-by-second movement that makes it worth showing. The service publishes only the reading of the moment, so [frequency.php](frequency.php) takes one every ten seconds and keeps the past hour on disk for the sparkline, and each update reads that hour back. When the newest reading is more than two minutes old, Energy-Charts is asked for its past hour instead, with a short-lived on-disk cache standing in for up to fifteen minutes when that fails too. It is also **not German** — the whole Continental European synchronous area turns in step, which is why the page says "Kontinentaleuropa".
+**Grid frequency** is the only measured figure on the page describing now rather than a finished quarter hour — the band under the panel, below the pie chart on a phone, shows demand now, which is estimated, beside the price now, which was set the day before — and the only one never stored in the database: averaging it into the quarter-hourly table would destroy the second-by-second movement that makes it worth showing. The service publishes only the reading of the moment, so [frequency.php](frequency.php) takes one every ten seconds and keeps the past hour on disk for the sparkline, and each update reads that hour back. When the newest reading is more than two minutes old, Energy-Charts is asked for its past hour instead, then Gridradar, with a short-lived on-disk cache standing in for up to fifteen minutes when all three fail. It is also **not German** — the whole Continental European synchronous area turns in step, which is why the page says "Kontinentaleuropa".
 
-PHP classes: [Entsoe](classes/Data/Entsoe.php), [Smard](classes/Data/Smard.php), [Generation](classes/Data/Generation.php), [Emissions](classes/Data/Emissions.php), [Pricing](classes/Data/Pricing.php), [Forecast](classes/Data/Forecast.php), [Frequency](classes/Data/Frequency.php), [Netzfrequenzmessung](classes/Data/Netzfrequenzmessung.php)
+### [Gridradar](https://www.gridradar.net/)
+
+The last source for the grid frequency, read with the token of a free account (`GRIDRADAR_TOKEN`): the median of Gridradar's own measurement units across the synchronous area, at one-second resolution, a quarter of an hour behind. Free access cannot ask for a span — each answer carries on from the end of the one before, up to an hour — so [Gridradar](classes/Data/Gridradar.php) keeps the readings on disk and adds each answer to them. Gridradar allows its figures to be shown on condition that the figure itself links to it, not an explanatory page or a tooltip, so the band names gridradar.net whenever it shows Gridradar's reading.
+
+PHP classes: [Entsoe](classes/Data/Entsoe.php), [Smard](classes/Data/Smard.php), [Generation](classes/Data/Generation.php), [Emissions](classes/Data/Emissions.php), [Pricing](classes/Data/Pricing.php), [Forecast](classes/Data/Forecast.php), [Frequency](classes/Data/Frequency.php), [Netzfrequenzmessung](classes/Data/Netzfrequenzmessung.php), [Gridradar](classes/Data/Gridradar.php)
 
 Unlike the UK original, Germany doesn't need a separate "embedded generation" data source: the generation figures already cover the whole country including distributed solar and wind, so there's no `Demand.php` equivalent.
 

@@ -32,6 +32,12 @@ class Frequency {
    * Outputs the frequency as a cell of the band describing now: the only
    * figure there that is measured rather than estimated or fixed ahead.
    *
+   * Gridradar's reading is shown with a line naming and linking to Gridradar
+   * in the cell itself, the condition on which Gridradar allowed the site to
+   * show it. A line of its own rather than a fourth item in the note, which
+   * has no room for one in a third of the band. The other sources are
+   * credited in the about text.
+   *
    * @param Reading $reading The reading
    * @param string  $locale  The locale ('de' or 'en')
    */
@@ -43,6 +49,9 @@ class Frequency {
             <span class="label"><?= I18n::t('frequency.heading', $locale) ?> <span data-help="frequency"></span></span>
             <span class="value <?= $class ?>"><?= I18n::number($reading->hertz, 3, $locale) ?><abbr>Hz</abbr></span>
             <span class="note"><span class="<?= $class ?>"><?= ($deviation > 0 ? '+' : ($deviation < 0 ? '−' : '±')) . abs((int)$deviation) ?>&#8201;mHz</span> · <?= I18n::t('frequency.area', $locale) ?> · <?= Status::time($reading->time, $locale) ?></span>
+<?php if ($reading->source === Reading::GRIDRADAR) { ?>
+            <span class="note"><?= I18n::t('frequency.source', $locale) ?> <a href="https://www.gridradar.net/">gridradar.net</a></span>
+<?php } ?>
 <?= self::sparkline($reading->series, $class) ?>
           </div>
 <?php

@@ -4,19 +4,23 @@ namespace KateMorley\Grid\Data;
 
 /**
  * Reads the grid frequency: the readings frequency.php has gathered from
- * netzfrequenzmessung.de (see Netzfrequenzmessung), or, when there are none
+ * netzfrequenzmessung.de (see Netzfrequenzmessung); when there are none
  * recent enough, the past hour from Energy-Charts
- * (https://api.energy-charts.info), run by Fraunhofer ISE.
+ * (https://api.energy-charts.info), run by Fraunhofer ISE; and when that
+ * fails too, the past hour from Gridradar (see Gridradar).
  *
  * Frequency is the one quantity on this site that describes now rather than a
  * quarter hour that has already finished. The readings gathered here are
  * seconds old when the page is built, where generation is half an hour
  * behind; Energy-Charts publishes at one-second resolution but reaches the
- * site around two and a half minutes after the fact.
+ * site around two and a half minutes after the fact, and Gridradar's free
+ * access a quarter of an hour after it. The sources are asked in that order,
+ * freshest first.
  *
- * Energy-Charts was the only source until its measurement stopped on 5
- * November 2026. It is now asked only when the readings fail, which also
- * leaves its small request allowance to the carbon intensity and the price.
+ * Energy-Charts was the only source until its measurement stopped for four
+ * days from 5 November 2026. It is now asked only when the readings fail,
+ * which also leaves its small request allowance to the carbon intensity and
+ * the price.
  *
  * It is deliberately not stored in the database. Averaging it into the
  * quarter-hourly table would destroy the second-by-second movement that makes
@@ -44,6 +48,20 @@ class Frequency {
    */
   private const MEASURED_MAXIMUM_AGE = 120;
 
+  /**
+   * How old the newest reading from Gridradar may be before it is refused,
+   * in seconds.
+   *
+   * Its free access is fifteen minutes behind by design, so this allows five
+   * minutes on top of that, after which the service has stopped advancing.
+   */
+  private const GRIDRADAR_MAXIMUM_AGE = 1200;
+
+  /** The sources a reading can come from. */
+  public const NETZFREQUENZMESSUNG = 'netzfrequenzmessung';
+  public const ENERGY_CHARTS       = 'energy-charts';
+  public const GRIDRADAR           = 'gridradar';
+
   /** The number of seconds to allow for a request. */
   private const TIMEOUT = 20;
 
@@ -53,10 +71,11 @@ class Frequency {
   /**
    * Where the last good reading is kept.
    *
-   * Energy-Charts rate-limits, and when the gathered readings have stopped as
-   * well, a single refused request would otherwise blank the band until the
-   * next run. The band carries the reading's own timestamp, so standing in
-   * with the last one is self-describing rather than a claim about now.
+   * Energy-Charts rate-limits and Gridradar refuses requests that come too
+   * close together, so when the gathered readings have stopped as well, a
+   * single refused request would otherwise blank the band until the next run.
+   * The band carries the reading's own timestamp, so standing in with the last
+   * one is self-describing rather than a claim about now.
    */
   private const CACHE = '/var/lib/netz-live/frequency.json';
 
@@ -86,14 +105,29 @@ class Frequency {
   public readonly array $series;
 
   /**
+   * Where the reading came from: one of the source constants.
+   *
+   * The page needs to know, because Gridradar's reading may only be shown
+   * with a link to Gridradar beside it.
+   */
+  public readonly string $source;
+
+  /**
    * Constructs a new instance.
    *
    * @param array<float> $series The reduced series
+   * @param string       $source One of the source constants
    */
-  private function __construct(float $hertz, int $time, array $series) {
+  private function __construct(
+    float $hertz,
+    int $time,
+    array $series,
+    string $source
+  ) {
     $this->hertz  = $hertz;
     $this->time   = $time;
     $this->series = $series;
+    $this->source = $source;
   }
 
   /** The deviation from nominal, in millihertz. */
@@ -107,31 +141,41 @@ class Frequency {
    * @throws DataException If the data was invalid
    */
   public static function read(): self {
-    try {
-      $reading = self::measured();
-    } catch (DataException $exception) {
+    $readers = [
+      'netzfrequenzmessung.de' => self::measured(...),
+      'Energy-Charts'          => self::fetch(...),
+      'Gridradar'              => self::gridradar(...)
+    ];
+
+    $exception = null;
+
+    foreach ($readers as $name => $reader) {
       // said out loud for the same reason the SMARD fallback is: a stand-in
       // nobody notices is how a source stays broken without anyone knowing
-      echo '(Energy-Charts fallback: ' . $exception->getMessage() . ') ';
+      if ($exception !== null) {
+        echo '(' . $name . ' fallback: ' . $exception->getMessage() . ') ';
+      }
 
       try {
-        $reading = self::fetch();
+        $reading = $reader();
       } catch (DataException $exception) {
-        $cached = self::cached();
-
-        if ($cached === null) {
-          throw $exception;
-        }
-
-        echo '(cached: ' . $exception->getMessage() . ') ';
-
-        return $cached;
+        continue;
       }
+
+      self::store($reading);
+
+      return $reading;
     }
 
-    self::store($reading);
+    $cached = self::cached();
 
-    return $reading;
+    if ($cached === null) {
+      throw $exception;
+    }
+
+    echo '(cached: ' . $exception->getMessage() . ') ';
+
+    return $cached;
   }
 
   /**
@@ -155,7 +199,36 @@ class Frequency {
       );
     }
 
-    return new self($readings[$latest], $latest, self::reduce($readings));
+    return new self(
+      $readings[$latest],
+      $latest,
+      self::reduce($readings),
+      self::NETZFREQUENZMESSUNG
+    );
+  }
+
+  /**
+   * Returns the past hour from Gridradar.
+   *
+   * @throws DataException If there is no recent reading
+   */
+  private static function gridradar(): self {
+    $readings = Gridradar::read();
+    $latest   = array_key_last($readings);
+    $age      = time() - $latest;
+
+    if ($age > self::GRIDRADAR_MAXIMUM_AGE) {
+      throw new DataException(
+        'Newest reading from Gridradar is ' . $age . ' seconds old'
+      );
+    }
+
+    return new self(
+      $readings[$latest],
+      $latest,
+      self::reduce($readings),
+      self::GRIDRADAR
+    );
   }
 
   /**
@@ -227,7 +300,12 @@ class Frequency {
 
     $latest = array_key_last($values);
 
-    return new self($values[$latest], $latest, self::reduce($values));
+    return new self(
+      $values[$latest],
+      $latest,
+      self::reduce($values),
+      self::ENERGY_CHARTS
+    );
   }
 
   /**
@@ -243,7 +321,8 @@ class Frequency {
       json_encode([
         'hertz'  => $reading->hertz,
         'time'   => $reading->time,
-        'series' => $reading->series
+        'series' => $reading->series,
+        'source' => $reading->source
       ]),
       LOCK_EX
     );
@@ -259,10 +338,18 @@ class Frequency {
 
     $data = json_decode($body, true);
 
+    // a reading stored without its source is refused rather than guessed at,
+    // since showing Gridradar's figure without the link would break the terms
+    // it is shown under
     if (
       !is_array($data)
-      || !isset($data['hertz'], $data['time'], $data['series'])
+      || !isset($data['hertz'], $data['time'], $data['series'], $data['source'])
       || !is_array($data['series'])
+      || !in_array(
+        $data['source'],
+        [self::NETZFREQUENZMESSUNG, self::ENERGY_CHARTS, self::GRIDRADAR],
+        true
+      )
       || time() - $data['time'] > self::CACHE_MAXIMUM_AGE
     ) {
       return null;
@@ -271,7 +358,8 @@ class Frequency {
     return new self(
       (float)$data['hertz'],
       (int)$data['time'],
-      array_map(fn ($value) => (float)$value, $data['series'])
+      array_map(fn ($value) => (float)$value, $data['series']),
+      $data['source']
     );
   }
 
