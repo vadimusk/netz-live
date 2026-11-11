@@ -291,6 +291,18 @@ class Generation {
   private const LONG_PERIOD = 7 * 24 * 60 * 60;
 
   /**
+   * The whole of the quarter-hourly table, read once a day, in seconds.
+   *
+   * Some revisions arrive after the week has passed. On 11 November 2026 the
+   * stored flow across the Austrian border differed from the published one on
+   * 401 quarter hours between 14 October and 1 November, by up to 1.35 GW,
+   * and onshore wind on 87 of 28 and 29 October, by up to 1.17 GW; nothing
+   * newer than 1 November differed at all. Nobody needs those within the
+   * half hour, so one read a day takes them up.
+   */
+  private const LONGEST_PERIOD = 28 * 24 * 60 * 60;
+
+  /**
    * Updates the generation data.
    *
    * @param Database $database The database instance
@@ -298,10 +310,15 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   public static function update(Database $database): void {
-    $long = Time::isHalfHourly(time());
-    $from = time() - ($long ? self::LONG_PERIOD : self::PERIOD);
+    $from = time() - self::PERIOD;
 
-    if ($long) {
+    if (Time::isDaily(time())) {
+      $from = time() - self::LONGEST_PERIOD;
+
+      echo '(month) ';
+    } elseif (Time::isHalfHourly(time())) {
+      $from = time() - self::LONG_PERIOD;
+
       echo '(week) ';
     }
 
@@ -315,6 +332,10 @@ class Generation {
       // written into the update log rather than passing silently, because a
       // fallback nobody notices is how the site ends up hours behind again.
       echo '(SMARD fallback: ' . $exception->getMessage() . ') ';
+
+      // SMARD is a file per series per week, so the month would be over a
+      // hundred requests, for revisions that can wait a day
+      $from = max($from, time() - self::LONG_PERIOD);
 
       $generation = self::readGenerationFromSmard($from);
       $transfers  = self::readTransfersFromSmard($from);

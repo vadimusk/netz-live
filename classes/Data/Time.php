@@ -22,6 +22,16 @@ class Time {
   }
 
   /**
+   * Returns whether an update starting at a time is the one a day, at half
+   * past one in the morning UTC, that does the work once a day is enough for.
+   *
+   * @param int $time The Unix timestamp
+   */
+  public static function isDaily(int $time): bool {
+    return intdiv($time, self::INTERVAL) % 288 === 18;
+  }
+
+  /**
    * Normalises a time and returns it as a "YYYY-MM-DD HH:MM:SS" string.
    *
    * @param string $time     The time
