@@ -34,6 +34,18 @@ class Pricing {
 
   private const ENERGY_CHARTS_URL = 'https://api.energy-charts.info/price';
 
+  /** The period read on most updates, in seconds. */
+  private const PERIOD = 24 * 60 * 60;
+
+  /**
+   * The whole of the quarter-hourly table, read once a day, in seconds.
+   *
+   * A price is settled once and not revised, but one that was missed is
+   * otherwise missed for good: fifteen quarter hours of 26 October 2026 stood
+   * at nought for a fortnight, against an auction price of 123 to 184 euros.
+   */
+  private const LONG_PERIOD = 28 * 24 * 60 * 60;
+
   /**
    * Updates the pricing data.
    *
@@ -46,7 +58,14 @@ class Pricing {
     // auction the day before, they run ahead of the generation rather than
     // behind it; the database discards the quarter hours not yet reached
     $latest  = $database->getLatestQuarterHourTimestamp();
-    $from    = $latest - 24 * 60 * 60;
+    $from    = $latest - self::PERIOD;
+
+    if (Time::isDaily(time())) {
+      $from = $latest - self::LONG_PERIOD;
+
+      echo '(month) ';
+    }
+
     $prices  = [];
     $failure = null;
 

@@ -94,6 +94,18 @@ class Emissions {
     'other_conventional'
   ];
 
+  /** The period read on most updates, in seconds. */
+  private const PERIOD = 24 * 60 * 60;
+
+  /**
+   * The whole of the quarter-hourly table, read once a day, in seconds.
+   *
+   * Energy-Charts recalculates its figures as the generation behind them is
+   * revised. On 11 November 2026, 108 of a month's stored quarter hours were
+   * more than 3 g/kWh from the published figure, three of them by about 80.
+   */
+  private const LONG_PERIOD = 28 * 24 * 60 * 60;
+
   /**
    * Updates the emissions data.
    *
@@ -104,6 +116,13 @@ class Emissions {
   public static function update(Database $database): void {
     $official = [];
     $failure  = null;
+    $period   = self::PERIOD;
+
+    if (Time::isDaily(time())) {
+      $period = self::LONG_PERIOD;
+
+      echo '(month) ';
+    }
 
     // the calculated figures are what stands in for the official ones when
     // they are late, so they mustn't depend on the official source being
@@ -111,7 +130,7 @@ class Emissions {
     // covered still get filled in from the mix, and the failure is reported
     // afterwards rather than instead
     try {
-      $official = self::readOfficial();
+      $official = self::readOfficial($period);
     } catch (DataException $e) {
       $failure = $e;
     }
@@ -178,14 +197,16 @@ class Emissions {
    * Reads the official emissions data, returning an array mapping normalised
    * times to rows.
    *
+   * @param int $period How far back to read, in seconds
+   *
    * @return array<string,array>
    *
    * @throws DataException If the data was invalid
    */
-  private static function readOfficial(): array {
+  private static function readOfficial(int $period): array {
     $rawData = @file_get_contents(sprintf(
       'https://api.energy-charts.info/co2eq?country=de&start=%s&end=%s',
-      gmdate('Y-m-d\\TH:i\\Z', time() - 24 * 60 * 60),
+      gmdate('Y-m-d\\TH:i\\Z', time() - $period),
       gmdate('Y-m-d\\TH:i\\Z', time())
     ));
 
