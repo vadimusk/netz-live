@@ -266,6 +266,22 @@ class Generation {
     'switzerland'    => [Entsoe::CONTROL_AREA, ['10YCH-SWISSGRIDZ']]
   ];
 
+  /**
+   * The most a single production type, and a single border, can carry, in
+   * gigawatts. A figure beyond these is a fault in the source rather than
+   * anything the grid did, and is treated as not published.
+   *
+   * SMARD serves such figures now and then. Its archive has the import from
+   * Switzerland at 25,000 GW for an hour of 9 February 2015, and on
+   * 10 November 2026 a flow across the Austrian border too large for its
+   * column stopped every write of the fallback for an hour and a half.
+   *
+   * The whole country has never drawn much over 80 GW, and the busiest border
+   * carries about 5, so the limits sit far above anything real.
+   */
+  public const MAXIMUM_GENERATION = 150.0;
+  public const MAXIMUM_TRANSFER   = 20.0;
+
   /** The period read on most updates, in seconds. */
   private const PERIOD = 24 * 60 * 60;
 
@@ -370,6 +386,10 @@ class Generation {
   private static function readGeneration(int $from): array {
     $read = Entsoe::readGeneration($from);
 
+    foreach ($read as $kind => $series) {
+      $read[$kind] = self::checked($series, 0, self::MAXIMUM_GENERATION);
+    }
+
     $read['generation']['B16'] ??= [];
 
     self::assumeDarkness($read['generation']['B16'], $from);
@@ -423,12 +443,16 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   private static function readGenerationFromSmard(int $from): array {
-    $series = Smard::read(
-      array_merge(
-        array_values(self::GENERATION_SERIES),
-        [self::PUMPED_CONSUMPTION_SERIES]
+    $series = self::checked(
+      Smard::read(
+        array_merge(
+          array_values(self::GENERATION_SERIES),
+          [self::PUMPED_CONSUMPTION_SERIES]
+        ),
+        $from
       ),
-      $from
+      0,
+      self::MAXIMUM_GENERATION
     );
 
     self::assumeDarkness($series[self::GENERATION_SERIES['solar']], $from);
@@ -654,7 +678,11 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   private static function readTransfers(int $from): array {
-    $flows = Entsoe::readFlows(self::TRANSFER_DOMAINS, $from);
+    $flows = self::checked(
+      Entsoe::readFlows(self::TRANSFER_DOMAINS, $from),
+      -self::MAXIMUM_TRANSFER,
+      self::MAXIMUM_TRANSFER
+    );
     $times = self::allTimes($flows);
     $data  = [];
 
@@ -675,9 +703,13 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   private static function readTransfersFromSmard(int $from): array {
-    $series = Smard::read(
-      array_merge(...array_values(self::TRANSFER_SERIES)),
-      $from
+    $series = self::checked(
+      Smard::read(
+        array_merge(...array_values(self::TRANSFER_SERIES)),
+        $from
+      ),
+      -self::MAXIMUM_TRANSFER,
+      self::MAXIMUM_TRANSFER
     );
 
     $times = self::allTimes($series);
@@ -699,6 +731,68 @@ class Generation {
     }
 
     return self::complete($data, self::TRANSFER_COLUMNS);
+  }
+
+  /**
+   * Returns a set of series without the values outside a range, noting in
+   * the update log how many there were.
+   *
+   * @param array<int|string,array<string,float>> $series  The series
+   * @param float                                 $minimum The least a value can be
+   * @param float                                 $maximum The most a value can be
+   *
+   * @return array<int|string,array<string,float>>
+   */
+  private static function checked(
+    array $series,
+    float $minimum,
+    float $maximum
+  ): array {
+    $discarded = 0;
+    $series    = self::plausible($series, $minimum, $maximum, $discarded);
+
+    if ($discarded !== 0) {
+      echo '(discarded '
+        . $discarded
+        . ' impossible value'
+        . ($discarded === 1 ? '' : 's')
+        . ') ';
+    }
+
+    return $series;
+  }
+
+  /**
+   * Returns a set of series without the values outside a range.
+   *
+   * A value left out is one the source has not published, as far as the rest
+   * of the update can tell: a core type holds its quarter hour back, and
+   * anything else carries its last figure forward.
+   *
+   * @param array<int|string,array<int|string,float>> $series    The series
+   * @param float                                     $minimum   The least a value can be
+   * @param float                                     $maximum   The most a value can be
+   * @param int                                       $discarded Raised by the number left out
+   *
+   * @return array<int|string,array<int|string,float>>
+   */
+  public static function plausible(
+    array $series,
+    float $minimum,
+    float $maximum,
+    int   &$discarded = 0
+  ): array {
+    foreach ($series as $key => $values) {
+      foreach ($values as $time => $value) {
+        if ($value < $minimum || $value > $maximum) {
+          unset($series[$key][$time]);
+
+          $discarded ++;
+        }
+      }
+    }
+
+    return $series;
   }
 
   /**

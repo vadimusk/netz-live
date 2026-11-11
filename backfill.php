@@ -17,6 +17,7 @@ use KateMorley\Grid\Database;
 use KateMorley\Grid\Environment;
 use KateMorley\Grid\Data\DataException;
 use KateMorley\Grid\Data\Entsoe;
+use KateMorley\Grid\Data\Generation;
 use KateMorley\Grid\Data\Smard;
 use KateMorley\Grid\Data\Time;
 
@@ -226,6 +227,18 @@ function months(int $from, int $to): array {
 function readPeriod(int $from, int $to): array {
   $read   = retry(fn () => Entsoe::readGeneration($from, $to));
   $flows  = retry(fn () => Entsoe::readFlows(ENTSOE_TRANSFERS, $from, $to));
+
+  // a figure the grid cannot have carried counts as absent, like any other
+  // the source did not publish: see Generation::MAXIMUM_GENERATION
+  foreach ($read as $kind => $series) {
+    $read[$kind] = Generation::plausible($series, 0, Generation::MAXIMUM_GENERATION);
+  }
+
+  $flows = Generation::plausible(
+    $flows,
+    -Generation::MAXIMUM_TRANSFER,
+    Generation::MAXIMUM_TRANSFER
+  );
   $prices = retry(fn () => Entsoe::readPrices(ENTSOE_PRICES, $from, $to));
 
   // the times come from the generation, which is the series that has to be
@@ -295,6 +308,16 @@ function readWeek(int $week): array {
     [$week],
     1
   ));
+
+  // a figure the grid cannot have carried counts as absent, like any other
+  // the source did not publish: see Generation::MAXIMUM_GENERATION
+  $generation = Generation::plausible($generation, 0, Generation::MAXIMUM_GENERATION);
+
+  $transfers = Generation::plausible(
+    $transfers,
+    -Generation::MAXIMUM_TRANSFER,
+    Generation::MAXIMUM_TRANSFER
+  );
 
   // the times come from the generation, which is the series that has to be
   // there: a quarter hour with flows but no generation isn't worth a row
