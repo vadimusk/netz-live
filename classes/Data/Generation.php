@@ -229,6 +229,17 @@ class Generation {
     'B19' => 'wind onshore'
   ];
 
+  /** The columns the core types are stored in, for the figures from SMARD. */
+  private const CORE_COLUMNS = [
+    'lignite',
+    'gas',
+    'hard_coal',
+    'pumped_generation',
+    'solar',
+    'wind_offshore',
+    'wind_onshore'
+  ];
+
   /** The production type reported as consumption for pumped storage. */
   private const PUMPED_CONSUMPTION_TYPE = 'B10';
 
@@ -338,7 +349,9 @@ class Generation {
   private static function readGeneration(int $from): array {
     $read = Entsoe::readGeneration($from);
 
-    self::assumeDarkness($read['generation'], $from);
+    $read['generation']['B16'] ??= [];
+
+    self::assumeDarkness($read['generation']['B16'], $from);
 
     $times = self::coveredTimes($read['generation'], self::CORE_TYPES);
     $data  = [];
@@ -375,6 +388,13 @@ class Generation {
    * Kept as the fallback for the days ENTSO-E cannot be reached: it carries
    * the same figures, arriving hours later, which beats carrying none.
    *
+   * Held to the quarter hours the core series all reach, as the figures from
+   * ENTSO-E are. This used to take every quarter hour any series reached and
+   * carry the rest forward to it, and on 10 November 2026 Amprion stopped
+   * publishing at 08:30 while offshore wind, which it has none of, went on:
+   * forty quarter hours were written as the 08:30 mix repeated, solar at
+   * 5.69 GW into the night, with only offshore wind moving.
+   *
    * @param int $from The earliest Unix timestamp of interest
    *
    * @return array<string,array<string,float>>
@@ -390,8 +410,14 @@ class Generation {
       $from
     );
 
-    $times = self::allTimes($series);
-    $data  = [];
+    self::assumeDarkness($series[self::GENERATION_SERIES['solar']], $from);
+
+    $times = self::coveredTimes($series, array_map(
+      fn ($column) => self::GENERATION_SERIES[$column],
+      self::CORE_COLUMNS
+    ));
+
+    $data = [];
 
     foreach (self::GENERATION_SERIES as $column => $id) {
       self::carryForward($data, $column, $series[$id], $times);
@@ -468,10 +494,10 @@ class Generation {
    * quarter hour in daylight with no solar reading is refused exactly as
    * before.
    *
-   * @param array $generation The generation series, modified in place
-   * @param int   $from       The start of the period being read
+   * @param array<string,float> $solar The solar series, modified in place
+   * @param int                 $from  The start of the period being read
    */
-  private static function assumeDarkness(array &$generation, int $from): void {
+  private static function assumeDarkness(array &$solar, int $from): void {
     $start = intdiv($from, 900) * 900;
     $end   = intdiv(time(), 900) * 900;
 
@@ -482,8 +508,8 @@ class Generation {
 
       $key = '"' . gmdate('Y-m-d H:i:s', $time) . '"';
 
-      if (!isset($generation['B16'][$key])) {
-        $generation['B16'][$key] = 0.0;
+      if (!isset($solar[$key])) {
+        $solar[$key] = 0.0;
       }
     }
   }
