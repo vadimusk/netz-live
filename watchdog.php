@@ -195,8 +195,11 @@ function shouldReport(string $problem): bool {
   ensureDirectory();
 
   // the kind of problem rather than its exact wording, so that an ageing
-  // figure in the message doesn't read as a new problem every time
-  $kind = explode(':', $problem)[0];
+  // figure in the message doesn't read as a new problem every time. Taking
+  // the text before the first colon, as this did, kept the hours in, and the
+  // colon it stopped at was the one in the time: a two-day stall in November
+  // 2026 sent an alert every half hour
+  $kind = preg_replace('/\d+(\.\d+)?/', '#', $problem);
   $now  = time();
 
   if (is_readable(STATE_FILE)) {
