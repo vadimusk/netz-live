@@ -34,6 +34,7 @@ CREATE TABLE `past_quarter_hours` (
   `price` decimal(7,2) NOT NULL DEFAULT 0.00,
   `emissions` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
   `visits` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `estimated` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

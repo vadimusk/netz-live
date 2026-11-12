@@ -118,12 +118,63 @@ class Entsoe {
     ?int   $to     = null,
     string $domain = self::CONTROL_AREA
   ): array {
-    $body = self::fetch([self::query([
+    return self::generation(self::fetch([self::query([
       'documentType' => 'A75',
       'processType'  => 'A16',
       'in_Domain'    => $domain
-    ], $from, $to)])[0];
+    ], $from, $to)])[0]);
+  }
 
+  /**
+   * Reads actual generation per production type for several domains at once,
+   * in parallel.
+   *
+   * Returns an array mapping each key to what readGeneration returns for its
+   * domain.
+   *
+   * @param array<string,string> $domains Keys mapped to domains
+   * @param int                  $from    The earliest Unix timestamp of interest
+   * @param ?int                 $to      The latest Unix timestamp of interest;
+   *                                      defaults to now
+   *
+   * @return array<string,array{generation:array<string,array<string,float>>,consumption:array<string,array<string,float>>}>
+   *
+   * @throws DataException If the data was invalid
+   */
+  public static function readGenerationByDomain(
+    array $domains,
+    int   $from,
+    ?int  $to = null
+  ): array {
+    $bodies = self::fetch(array_map(
+      fn ($domain) => self::query([
+        'documentType' => 'A75',
+        'processType'  => 'A16',
+        'in_Domain'    => $domain
+      ], $from, $to),
+      array_values($domains)
+    ));
+
+    $result = [];
+
+    foreach (array_keys($domains) as $position => $key) {
+      $result[$key] = self::generation($bodies[$position]);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Returns the generation and consumption in a response body, keyed as
+   * readGeneration describes.
+   *
+   * @param ?string $body The response body, or null where nothing matched
+   *
+   * @return array{generation:array<string,array<string,float>>,consumption:array<string,array<string,float>>}
+   *
+   * @throws DataException If the data was invalid
+   */
+  private static function generation(?string $body): array {
     $result = ['generation' => [], 'consumption' => []];
 
     if ($body === null) {
@@ -165,6 +216,33 @@ class Entsoe {
       ),
       self::query(
         ['documentType' => 'A65', 'processType' => 'A01', 'outBiddingZone_Domain' => self::CONTROL_AREA],
+        $from,
+        $to
+      )
+    ]));
+  }
+
+  /**
+   * Reads the day-ahead forecasts of solar and both winds for one domain, one
+   * of the four control areas within Germany, keyed as readForecasts keys
+   * them.
+   *
+   * @param string $domain The domain
+   * @param int    $from   The earliest Unix timestamp of interest
+   * @param int    $to     The latest Unix timestamp of interest
+   *
+   * @return array<string,array<string,float>>
+   *
+   * @throws DataException If the data was invalid
+   */
+  public static function readGenerationForecasts(
+    string $domain,
+    int    $from,
+    int    $to
+  ): array {
+    return self::forecasts(self::fetch([
+      self::query(
+        ['documentType' => 'A69', 'processType' => 'A01', 'in_Domain' => $domain],
         $from,
         $to
       )

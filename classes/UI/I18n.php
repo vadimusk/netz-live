@@ -28,6 +28,8 @@ class I18n {
       'status.time'      => 'Zeit',
       'status.price'      => 'Preis',
       'status.emissions' => 'Emissionen',
+      'status.estimated' => '%s geschätzt',
+      'status.estimated.since' => '%s seit %s geschätzt',
 
       'now.label'         => 'Jetzt',
       'now.estimated'     => 'geschätzt',
@@ -85,7 +87,7 @@ class I18n {
       'about.p1'      => 'Diese Seite ist ein Open-Source-Fork von <a href="https://grid.iamkate.com/">National Grid: Live</a>, einem Projekt von <a href="https://iamkate.com/">Kate Morley</a>. Wie das Original steht auch dieser Fork unter der <a href="https://creativecommons.org/publicdomain/zero/1.0/legalcode">Creative Commons CC0 1.0 Universal Legal Code</a> — der Quellcode ist gemeinfrei und <a href="https://github.com/vadimusk/netz-live">auf GitHub verfügbar</a>, ohne dass eine Namensnennung erforderlich ist.',
       'about.p2'      => 'Diese Seite hatte im vergangenen Jahr %s Besuche.',
       'about.p2.short' => 'Diese Seite hatte seit ihrem Start %s Besuche.',
-      'about.p3'      => 'Erzeugung und grenzüberschreitende Lastflüsse stammen von der <a href="https://transparency.entsoe.eu/">ENTSO-E-Transparenzplattform</a>, auf der die Übertragungsnetzbetreiber ihre Zahlen selbst veröffentlichen; sie sind etwa eine halbe Stunde alt, einzelne Grenzen folgen später. Die Day-Ahead-Preise stammen von <a href="https://www.smard.de/">SMARD</a>, der Strommarktdatenplattform der Bundesnetzagentur, und sind unter der Lizenz CC BY 4.0 freigegeben. Die CO₂-Intensität stammt von der <a href="https://www.energy-charts.info/">Energy-Charts-Plattform</a> des Fraunhofer-Instituts für Solare Energiesysteme ISE; sie erscheint mit einigen Stunden Verzug, weshalb sie für die jüngsten Viertelstunden aus dem Erzeugungsmix berechnet wird — mit einer mittleren Abweichung von etwa 7 g/kWh gegenüber dem später eintreffenden amtlichen Wert, der die Berechnung dann ersetzt. Die Netzfrequenz misst <a href="https://www.netzfrequenzmessung.de/">netzfrequenzmessung.de</a>; fällt die Messung aus, springt Energy-Charts ein und danach <a href="https://www.gridradar.net/">Gridradar</a>, dessen Werte eine Viertelstunde zurückliegen.',
+      'about.p3'      => 'Erzeugung und grenzüberschreitende Lastflüsse stammen von der <a href="https://transparency.entsoe.eu/">ENTSO-E-Transparenzplattform</a>, auf der die Übertragungsnetzbetreiber ihre Zahlen selbst veröffentlichen; sie sind etwa eine halbe Stunde alt, einzelne Grenzen folgen später. Die Day-Ahead-Preise stammen von <a href="https://www.smard.de/">SMARD</a>, der Strommarktdatenplattform der Bundesnetzagentur, und sind unter der Lizenz CC BY 4.0 freigegeben. Die CO₂-Intensität stammt von der <a href="https://www.energy-charts.info/">Energy-Charts-Plattform</a> des Fraunhofer-Instituts für Solare Energiesysteme ISE; sie erscheint mit einigen Stunden Verzug, weshalb sie für die jüngsten Viertelstunden aus dem Erzeugungsmix berechnet wird — mit einer mittleren Abweichung von etwa 7 g/kWh gegenüber dem später eintreffenden amtlichen Wert, der die Berechnung dann ersetzt. Die Netzfrequenz misst <a href="https://www.netzfrequenzmessung.de/">netzfrequenzmessung.de</a>; fällt die Messung aus, springt Energy-Charts ein und danach <a href="https://www.gridradar.net/">Gridradar</a>, dessen Werte eine Viertelstunde zurückliegen. Die Erzeugung wird aus den vier Regelzonen von 50Hertz, Amprion, TenneT und TransnetBW zusammengesetzt; meldet ein Betreiber nicht vollständig, wird der fehlende Teil seines Anteils aus seiner eigenen Wind- und Solarprognose und dem Verlauf der anderen drei geschätzt, bis seine Zahlen eintreffen und die Schätzung ersetzen.',
 
       'transition.heading' => 'Die Energiewende',
       'transition.p1'      => 'Am 15. April 2023 gingen die letzten drei deutschen Kernkraftwerke vom Netz und beendeten damit ein 2011 nach der Reaktorkatastrophe von Fukushima beschlossenes Ausstiegsprogramm. Kernenergie taucht in den Erzeugungsdaten dieser Seite deshalb nicht mehr auf.',
@@ -118,6 +120,8 @@ class I18n {
       'status.time'      => 'Time',
       'status.price'      => 'Price',
       'status.emissions' => 'Emissions',
+      'status.estimated' => '%s estimated',
+      'status.estimated.since' => '%s estimated for %s',
 
       'now.label'         => 'Now',
       'now.estimated'     => 'estimated',
@@ -175,7 +179,7 @@ class I18n {
       'about.p1'      => 'This site is an open source fork of <a href="https://grid.iamkate.com/">National Grid: Live</a>, a project by <a href="https://iamkate.com/">Kate Morley</a>. Like the original, this fork is published under the terms of the <a href="https://creativecommons.org/publicdomain/zero/1.0/legalcode">Creative Commons CC0 1.0 Universal Legal Code</a> — the code is public domain and <a href="https://github.com/vadimusk/netz-live">available on GitHub</a>, and you can use and adapt it without attribution.',
       'about.p2'      => 'This site received %s visits over the past year.',
       'about.p2.short' => 'This site has received %s visits since it launched.',
-      'about.p3'      => 'Generation and cross-border flows come from the <a href="https://transparency.entsoe.eu/">ENTSO-E Transparency Platform</a>, where the transmission system operators publish their figures themselves; they are around half an hour old, with some borders following later. The day-ahead prices come from <a href="https://www.smard.de/">SMARD</a>, the electricity market data platform of the Bundesnetzagentur, and are released under a CC BY 4.0 licence. The carbon intensity comes from the <a href="https://www.energy-charts.info/">Energy-Charts platform</a> run by the Fraunhofer Institute for Solar Energy Systems ISE; it arrives a few hours late, so for the most recent quarter hours it is calculated from the generation mix instead — to within about 7 g/kWh of the official figure that later arrives and replaces it. The grid frequency is measured by <a href="https://www.netzfrequenzmessung.de/">netzfrequenzmessung.de</a>, with Energy-Charts standing in when the measurement is unavailable and then <a href="https://www.gridradar.net/">Gridradar</a>, whose figures are a quarter of an hour behind.',
+      'about.p3'      => 'Generation and cross-border flows come from the <a href="https://transparency.entsoe.eu/">ENTSO-E Transparency Platform</a>, where the transmission system operators publish their figures themselves; they are around half an hour old, with some borders following later. The day-ahead prices come from <a href="https://www.smard.de/">SMARD</a>, the electricity market data platform of the Bundesnetzagentur, and are released under a CC BY 4.0 licence. The carbon intensity comes from the <a href="https://www.energy-charts.info/">Energy-Charts platform</a> run by the Fraunhofer Institute for Solar Energy Systems ISE; it arrives a few hours late, so for the most recent quarter hours it is calculated from the generation mix instead — to within about 7 g/kWh of the official figure that later arrives and replaces it. The grid frequency is measured by <a href="https://www.netzfrequenzmessung.de/">netzfrequenzmessung.de</a>, with Energy-Charts standing in when the measurement is unavailable and then <a href="https://www.gridradar.net/">Gridradar</a>, whose figures are a quarter of an hour behind. Generation is assembled from the four control areas of 50Hertz, Amprion, TenneT and TransnetBW; when an operator has not reported in full, the missing part of its share is estimated from its own wind and solar forecast and the course of the other three until its figures arrive and replace the estimate.',
 
       'transition.heading' => 'The energy transition',
       'transition.p1'      => "On 15th April 2023 Germany's last three nuclear power stations shut down, completing a phase-out programme adopted in 2011 in response to the Fukushima disaster. As a result, nuclear power no longer appears in this site's generation data.",
@@ -249,6 +253,23 @@ class I18n {
     return $hours === 0
       ? $minutes . ' min ago'
       : $hours . ' hr' . ($rest !== 0 ? ' ' . $rest . ' min' : '') . ' ago';
+  }
+
+  /**
+   * Formats a span of time, in seconds, as a short duration in whole hours
+   * from an hour on and minutes below that (e.g. "50 Std." / "50 hr").
+   *
+   * @param int    $seconds The span in seconds
+   * @param string $locale  The locale ('de' or 'en')
+   */
+  public static function duration(int $seconds, string $locale): string {
+    $minutes = max(1, (int)round($seconds / 60));
+
+    if ($minutes < 60) {
+      return $minutes . ($locale === 'de' ? ' Min.' : ' min');
+    }
+
+    return (int)round($minutes / 60) . ($locale === 'de' ? ' Std.' : ' hr');
   }
 
   /**

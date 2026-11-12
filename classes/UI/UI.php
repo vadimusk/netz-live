@@ -180,7 +180,7 @@ class UI {
   private function livePanel(): void {
 ?>
         <div class="reported">
-<?php Status::output($this->state->latest, Status::time($this->state->time, $this->locale), $this->locale, true, time() - $this->state->time); ?>
+<?php Status::output($this->state->latest, Status::time($this->state->time, $this->locale), $this->locale, true, time() - $this->state->time, $this->state->estimatedAreas); ?>
 <?php Equation::output($this->state->latest->sources, $this->locale, true); ?>
         </div>
         <?php PieChart::output($this->state->latest->sources, $this->locale); ?>

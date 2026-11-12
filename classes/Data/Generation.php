@@ -5,8 +5,10 @@ namespace KateMorley\Grid\Data;
 use KateMorley\Grid\Database;
 
 /**
- * Updates generation and cross-border flow data from SMARD
- * (https://www.smard.de), run by the Bundesnetzagentur.
+ * Updates generation and cross-border flow data from ENTSO-E
+ * (https://transparency.entsoe.eu), summing the four German control areas,
+ * with SMARD (https://www.smard.de), run by the Bundesnetzagentur, as the
+ * fallback.
  */
 class Generation {
   public const KEYS = [
@@ -50,7 +52,8 @@ class Generation {
     'pumped_generation',
     'pumped_consumption',
     'other_renewable',
-    'other_conventional'
+    'other_conventional',
+    'estimated'
   ];
 
   private const TRANSFER_COLUMNS = [
@@ -216,20 +219,76 @@ class Generation {
   private const DARKNESS_ELEVATION = -2.0;
 
   /**
-   * Names for the core types, used only to say which one is holding the
-   * newest quarter hour back.
+   * The four control areas Germany is divided into, each with its own
+   * transmission system operator, keyed by that operator's name: the domain
+   * ENTSO-E files it under, and the core types it publishes for every quarter
+   * hour.
+   *
+   * The country is read as the sum of the four rather than as the total the
+   * platform files for it, because the total is only complete once the last
+   * of them has reported. From 10 November 2026 Amprion published nothing for
+   * more than two days while the other three carried on, and the whole site
+   * stood still with it. Summed this way the operators that report are shown
+   * as they are, and what the others have not reported is estimated (see
+   * MINIMUM_REPORTED and estimate()).
+   *
+   * Each four-way sum reproduces the platform's total for every production
+   * type to the hundredth of a gigawatt, checked over 2627 quarter hours of
+   * October and November 2026, once each operator's figures are carried
+   * forward over the quarter hours it leaves out, as combine() already does
+   * for the country.
+   *
+   * The core is CORE_TYPES less what an operator does not publish on every
+   * quarter hour: Amprion and TransnetBW have no offshore wind, TransnetBW
+   * and TenneT no lignite to speak of, TenneT leaves hard coal out of one
+   * quarter hour in twenty, and every one of them but TransnetBW leaves
+   * pumped storage out while it stands idle, which in the sum is the nought
+   * it was.
    */
-  private const CORE_NAMES = [
-    'B02' => 'lignite',
-    'B04' => 'gas',
-    'B05' => 'hard coal',
-    'B10' => 'pumped storage',
-    'B16' => 'solar',
-    'B18' => 'wind offshore',
-    'B19' => 'wind onshore'
+  public const AREAS = [
+    '50Hertz'    => ['10YDE-VE-------2', ['B02', 'B04', 'B05', 'B16', 'B18', 'B19']],
+    'Amprion'    => ['10YDE-RWENET---I', ['B02', 'B04', 'B05', 'B16', 'B19']],
+    'TenneT'     => ['10YDE-EON------1', ['B04', 'B16', 'B18', 'B19']],
+    'TransnetBW' => ['10YDE-ENBW-----N', ['B04', 'B05', 'B10', 'B16', 'B19']]
   ];
 
-  /** The columns the core types are stored in, for the figures from SMARD. */
+  /**
+   * How long the anchored estimate of solar and wind takes to give way to the
+   * forecast, in seconds.
+   *
+   * Moving the last reported figure by the forecast's change is best in the
+   * first hours and the forecast itself is best after that, so the estimate
+   * slides from the one to the other with this time constant. Over October
+   * and November 2026 that put Amprion's onshore wind 0.17GW out an hour
+   * after its last report and 0.42GW a day after, where holding the last
+   * figure was 0.27GW and 2.08GW out.
+   */
+  private const FORECAST_HANDOVER = 6 * 60 * 60;
+
+  /**
+   * How many of the four operators must have reported a quarter hour in full
+   * before it is written, the rest estimated.
+   *
+   * Three, at first, so that only one was ever estimated. But the operators
+   * publish minutes apart and each type on its own, and one with a single
+   * type a quarter hour late, beside another that had gone silent, held the
+   * page back: in the early hours of 13 November 2026 TenneT's onshore wind
+   * was a quarter hour behind while Amprion's gas was three hours behind,
+   * and the newest quarter hour sat an hour old while two operators had
+   * reported half an hour more. With two, the page keeps up with the faster
+   * half; whatever an operator has reported of a quarter hour is used as it
+   * stands, and only the types it has not are estimated.
+   */
+  private const MINIMUM_REPORTED = 2;
+
+  /** The types estimated from the operator's own forecast. */
+  private const FORECAST_KEYS = [
+    'B16' => 'solar',
+    'B18' => 'wind_offshore',
+    'B19' => 'wind_onshore'
+  ];
+
+  /** The columns the core types are stored in, for the figures from SMARD. */  /** The columns the core types are stored in, for the figures from SMARD. */
   private const CORE_COLUMNS = [
     'lignite',
     'gas',
@@ -393,43 +452,388 @@ class Generation {
    * @throws DataException If the data was invalid
    */
   private static function readGeneration(int $from): array {
-    $read = Entsoe::readGeneration($from);
+    $read = self::readAreas($from);
 
-    foreach ($read as $kind => $series) {
-      $read[$kind] = self::checked($series, 0, self::MAXIMUM_GENERATION);
+    // an operator that has stopped needs its last report, and the day before
+    // it, to be estimated from; a stall longer than the window would leave it
+    // with neither, so the week is read instead
+    foreach ($read as $area) {
+      $covered = array_keys($area['covered']);
+
+      if (
+        $from > time() - self::LONG_PERIOD
+        && (count($covered) === 0 || self::seconds(end($covered)) < $from + 86400)
+      ) {
+        $from = time() - self::LONG_PERIOD;
+        $read = self::readAreas($from);
+
+        break;
+      }
     }
 
-    $read['generation']['B16'] ??= [];
+    // the quarter hours at least MINIMUM_REPORTED of the four have reported
+    $counts = [];
 
-    self::assumeDarkness($read['generation']['B16'], $from);
-
-    $times = self::coveredTimes($read['generation'], self::CORE_TYPES);
-    $data  = [];
-
-    self::reportConstraint($read['generation']);
-
-    foreach (self::GENERATION_TYPES as $column => $codes) {
-      self::carryForward(
-        $data,
-        $column,
-        self::combine($read['generation'], $codes, $times),
-        $times
-      );
+    foreach ($read as $area) {
+      foreach (array_keys($area['covered']) as $time) {
+        $counts[$time] = ($counts[$time] ?? 0) + 1;
+      }
     }
 
-    // consumption is stored as a negative value, so that adding it to
-    // generation gives the net signed power of the pumped storage fleet
-    self::carryForward(
-      $data,
-      'pumped_consumption',
-      array_map(
-        fn ($value) => -$value,
-        self::combine($read['consumption'], [self::PUMPED_CONSUMPTION_TYPE], $times)
-      ),
-      $times
-    );
+    $times = array_keys(array_filter(
+      $counts,
+      fn ($count) => $count >= self::MINIMUM_REPORTED
+    ));
+
+    sort($times);
+
+    if (count($times) === 0) {
+      throw new DataException('No quarter hour covered by two of the four operators');
+    }
+
+    // each operator's own figures, carried forward over the quarter hours it
+    // leaves out, wherever it has reported
+    $values = [];
+
+    foreach ($read as $name => $area) {
+      $values[$name] = self::areaValues($area, $times);
+    }
+
+    $estimated = self::estimateMissing($read, $values, $times);
+
+    $data = [];
+    $bits = array_flip(array_keys(self::AREAS));
+
+    foreach ($times as $time) {
+      $mask = 0;
+
+      foreach (array_keys(self::AREAS) as $name) {
+        if (isset($estimated[$name][$time])) {
+          $mask |= 1 << $bits[$name];
+        }
+      }
+
+      // a quarter hour whose missing operator has nothing to be estimated
+      // from is left out rather than written short
+      foreach (array_keys(self::AREAS) as $name) {
+        if (!isset($values[$name]['B04'][$time])) {
+          continue 2;
+        }
+      }
+
+      foreach (self::GENERATION_TYPES as $column => $codes) {
+        $total = 0.0;
+
+        foreach (array_keys(self::AREAS) as $name) {
+          foreach ($codes as $code) {
+            $total += $values[$name][$code][$time] ?? 0.0;
+          }
+        }
+
+        $data[$time][$column] = round($total, 3);
+      }
+
+      // consumption is stored as a negative value, so that adding it to
+      // generation gives the net signed power of the pumped storage fleet
+      $total = 0.0;
+
+      foreach (array_keys(self::AREAS) as $name) {
+        $total += $values[$name]['consumption'][$time] ?? 0.0;
+      }
+
+      $data[$time]['pumped_consumption'] = -round($total, 3);
+      $data[$time]['estimated']          = $mask;
+    }
 
     return self::complete($data, self::GENERATION_COLUMNS);
+  }
+
+  /**
+   * Reads the four control areas, returning for each its generation and
+   * consumption series as Entsoe::readGeneration returns them, and the
+   * quarter hours its core types all reach, as a set.
+   *
+   * @param int $from The earliest Unix timestamp of interest
+   *
+   * @return array<string,array{generation:array<string,array<string,float>>,consumption:array<string,array<string,float>>,covered:array<string,true>}>
+   *
+   * @throws DataException If the data was invalid
+   */
+  private static function readAreas(int $from): array {
+    $domains = array_map(fn ($area) => $area[0], self::AREAS);
+
+    // four requests where there used to be one, and the platform drops one
+    // now and then, as it did through most of 10 November 2026; one failure
+    // is worth a second try before giving way to SMARD, which is hours behind
+    try {
+      $read = Entsoe::readGenerationByDomain($domains, $from);
+    } catch (DataException $exception) {
+      echo '(retried: ' . $exception->getMessage() . ') ';
+
+      $read = Entsoe::readGenerationByDomain($domains, $from);
+    }
+
+    foreach ($read as $name => $area) {
+      foreach (['generation', 'consumption'] as $kind) {
+        $area[$kind] = self::checked($area[$kind], 0, self::MAXIMUM_GENERATION);
+      }
+
+      $area['generation']['B16'] ??= [];
+
+      self::assumeDarkness($area['generation']['B16'], $from);
+
+      $area['covered'] = self::intersection($area['generation'], self::AREAS[$name][1]);
+      $read[$name]     = $area;
+    }
+
+    return $read;
+  }
+
+  /**
+   * Returns an operator's figures for the quarter hours it has reported, each
+   * type carried forward over the quarter hours it leaves out, as an array
+   * mapping each type, and 'consumption' for pumped storage drawing power, to
+   * an array mapping times to gigawatts.
+   *
+   * @param array         $area  The operator's series, as readAreas returns
+   * @param array<string> $times The times wanted, in order
+   *
+   * @return array<string,array<string,float>>
+   */
+  private static function areaValues(array $area, array $times): array {
+    // the operator's own reports reach back before the quarter hours wanted,
+    // and those are what an estimate is anchored to
+    $all = array_unique(array_merge(array_keys($area['covered']), $times));
+
+    sort($all);
+
+    $series = $area['generation'];
+    $series['consumption'] = $area['consumption'][self::PUMPED_CONSUMPTION_TYPE] ?? [];
+
+    $values = [];
+
+    foreach ($series as $type => $points) {
+      $last = 0.0;
+
+      foreach ($all as $time) {
+        if (isset($points[$time])) {
+          $last = $points[$time];
+        }
+
+        if (isset($area['covered'][$time])) {
+          $values[$type][$time] = $last;
+        }
+      }
+    }
+
+    return $values;
+  }
+
+  /**
+   * Estimates what the operators have not reported of the quarter hours the
+   * others have, writing the estimates into the values and returning the
+   * quarter hours estimated, by operator.
+   *
+   * Each type is estimated by whichever way was closest over October and
+   * November 2026, tried on every operator from every third hour, at reaches
+   * from one hour to two days:
+   *
+   * - **Solar and wind** follow the operator's own day-ahead forecast, which
+   *   it goes on filing while its actual figures are missing (FORECAST_HANDOVER).
+   * - **Gas** moves in proportion to the gas of the others, since it is
+   *   run to the market across the whole country: at two days, 0.98GW out for
+   *   Amprion against 1.25GW held.
+   * - **Pumped storage** takes the share of the others' it had over the
+   *   day before, since all four fleets follow the same price: 0.2GW out
+   *   against 0.3GW held.
+   * - **Everything else** — lignite, coal, biomass, hydro and the small
+   *   types — is held at its last report, which beat every alternative tried.
+   *
+   * Summed over the operator's whole mix, that was 0.5GW out after an hour,
+   * 1.3GW after a day and 1.8GW after two, against 0.6, 1.8 and 2.3GW for
+   * holding everything, in a country generating 50 to 70GW.
+   *
+   * @param array                                            $read   The series, as readAreas returns them
+   * @param array<string,array<string,array<string,float>>> $values The values, as areaValues returns them, filled in
+   * @param array<string>                                    $times  The times, in order
+   *
+   * @return array<string,array<string,true>>
+   */
+  private static function estimateMissing(array $read, array &$values, array $times): array {
+    $estimated = [];
+
+    foreach ($read as $name => $area) {
+      $missing = array_values(array_filter(
+        $times,
+        fn ($time) => !isset($area['covered'][$time])
+      ));
+
+      $reported = array_keys($area['covered']);
+
+      sort($reported);
+
+      if (count($missing) === 0 || count($reported) === 0) {
+        continue;
+      }
+
+      $forecasts = [];
+
+      try {
+        // from the hour before the first quarter hour missing, which takes
+        // in the anchor of every one after it
+        $forecasts = Entsoe::readGenerationForecasts(
+          self::AREAS[$name][0],
+          self::seconds($missing[0]) - 3600,
+          self::seconds(end($missing)) + 900
+        );
+      } catch (DataException $exception) {
+        echo '(' . $name . ' forecast unavailable: ' . $exception->getMessage() . ') ';
+      }
+
+      $index  = 0;
+      $anchor = null;
+
+      foreach ($missing as $time) {
+        while ($index < count($reported) && $reported[$index] < $time) {
+          $anchor = $reported[$index ++];
+        }
+
+        // nothing reported before it, so nothing to estimate from
+        if ($anchor === null) {
+          continue;
+        }
+
+        foreach (array_keys($values[$name]) as $type) {
+          // what the operator has reported of the quarter hour stands as
+          // reported, and only the rest is estimated
+          $reportedValue = $type === 'consumption'
+            ? ($area['consumption'][self::PUMPED_CONSUMPTION_TYPE][$time] ?? null)
+            : ($area['generation'][$type][$time] ?? null);
+
+          $values[$name][$type][$time] = $reportedValue ?? self::estimate(
+            $name,
+            $type,
+            $anchor,
+            $time,
+            $values,
+            $forecasts,
+            $read
+          );
+        }
+
+        $estimated[$name][$time] = true;
+      }
+
+      // said every time, as the fallbacks are: an estimate nobody notices
+      // is how an operator's silence goes unseen
+      if (isset($estimated[$name])) {
+        echo '(' . $name . ' estimated after '
+          . gmdate('d.m. H:i', self::seconds($anchor))
+          . ' UTC) ';
+      }
+    }
+
+    return $estimated;
+  }
+
+  /**
+   * Returns the estimate of one type for one operator at one time.
+   *
+   * @param string                                           $name      The operator
+   * @param string                                           $type      The type, or 'consumption'
+   * @param string                                           $anchor    The operator's last report before the time
+   * @param string                                           $time      The time
+   * @param array<string,array<string,array<string,float>>> $values    Every operator's values
+   * @param array<string,array<string,float>>                $forecasts The operator's forecasts
+   * @param array                                            $read      Every operator's series, as readAreas returns them
+   */
+  private static function estimate(
+    string $name,
+    string $type,
+    string $anchor,
+    string $time,
+    array  $values,
+    array  $forecasts,
+    array  $read
+  ): float {
+    $last = $values[$name][$type][$anchor] ?? 0.0;
+
+    if (isset(self::FORECAST_KEYS[$type])) {
+      $forecast = $forecasts[self::FORECAST_KEYS[$type]] ?? [];
+
+      if (isset($forecast[$time], $forecast[$anchor])) {
+        $weight = exp(-(self::seconds($time) - self::seconds($anchor)) / self::FORECAST_HANDOVER);
+
+        return max(0.0, round(
+          $weight * ($last + $forecast[$time] - $forecast[$anchor])
+            + (1 - $weight) * $forecast[$time],
+          3
+        ));
+      }
+
+      return $type === 'B16' && self::isDark(self::seconds($time)) ? 0.0 : $last;
+    }
+
+    // the other operators that have reported the quarter hour in full, the
+    // same ones at the anchor, so that a second operator still missing
+    // counts on neither side of the comparison
+    $reporting = array_filter(
+      array_keys($values),
+      fn ($other) => $other !== $name && isset($read[$other]['covered'][$time])
+    );
+
+    $others = function (string $at) use ($type, $values, $reporting): float {
+      $total = 0.0;
+
+      foreach ($reporting as $other) {
+        $total += $values[$other][$type][$at] ?? 0.0;
+      }
+
+      return $total;
+    };
+
+    if ($type === 'B04') {
+      $then = $others($anchor);
+
+      return $then > 0.05 ? round($last * $others($time) / $then, 3) : $last;
+    }
+
+    if ($type === self::PUMPED_CONSUMPTION_TYPE || $type === 'consumption') {
+      // the same for every quarter hour estimated from one anchor
+      static $shares = [];
+
+      $key = $name . $type . $anchor . implode(',', $reporting);
+
+      if (!isset($shares[$key])) {
+        $own   = 0.0;
+        $total = 0.0;
+        $start = gmdate('"Y-m-d H:i:s"', self::seconds($anchor) - 86400);
+
+        foreach ($values[$name][$type] as $at => $value) {
+          if ($at <= $anchor && $at > $start) {
+            $own   += $value;
+            $total += $others($at);
+          }
+        }
+
+        $shares[$key] = $total > 0.05 ? $own / $total : null;
+      }
+
+      return $shares[$key] === null ? $last : round($shares[$key] * $others($time), 3);
+    }
+
+    return $last;
+  }
+
+  /**
+   * Returns a normalised time as a Unix timestamp.
+   *
+   * @param string $time The time, quoted as the database takes it
+   */
+  private static function seconds(string $time): int {
+    static $seconds = [];
+
+    return $seconds[$time] ??= strtotime(trim($time, '"') . ' UTC');
   }
 
   /**
@@ -484,59 +888,13 @@ class Generation {
       $times
     );
 
+    // SMARD carries the country whole, so nothing in it is estimated, and a
+    // quarter hour estimated earlier is marked as reported once it arrives
+    foreach (array_keys($data) as $time) {
+      $data[$time]['estimated'] = 0;
+    }
+
     return self::complete($data, self::GENERATION_COLUMNS);
-  }
-
-  /**
-   * Notes in the update log which core type is holding the newest quarter
-   * hour back, when one of them is behind the others.
-   *
-   * A stalled source and a healthy one both print OK on every other line, and
-   * working out which type was the constraint otherwise means querying the
-   * platform by hand. One line here answers it, and stays silent on the runs
-   * where nothing is being held back.
-   *
-   * @param array<string,array<string,float>> $series The series by type
-   */
-  private static function reportConstraint(array $series): void {
-    $ends = [];
-
-    foreach (self::CORE_TYPES as $code) {
-      if (count($series[$code] ?? []) !== 0) {
-        $ends[$code] = max(array_keys($series[$code]));
-      }
-    }
-
-    if (count($ends) !== count(self::CORE_TYPES)) {
-      echo '(missing: '
-        . implode(', ', array_map(
-          fn ($code) => self::CORE_NAMES[$code],
-          array_diff(self::CORE_TYPES, array_keys($ends))
-        ))
-        . ') ';
-
-      return;
-    }
-
-    $earliest = min($ends);
-    $laggards = array_keys($ends, $earliest);
-
-    // where most of the core ends together, that is simply the edge of what
-    // the platform has published, and saying so on every run would bury the
-    // case worth seeing: one or two series behind the rest, holding back
-    // quarter hours the others already cover
-    if (count($laggards) * 2 >= count(self::CORE_TYPES)) {
-      return;
-    }
-
-    echo '(held at '
-      . substr(trim($earliest, '"'), 11, 5)
-      . ' by '
-      . implode(', ', array_map(
-        fn ($code) => self::CORE_NAMES[$code],
-        $laggards
-      ))
-      . ') ';
   }
 
   /**
@@ -624,6 +982,25 @@ class Generation {
    * @return array<string>
    */
   private static function coveredTimes(array $series, array $codes): array {
+    $times = self::intersection($series, $codes);
+
+    if (count($times) === 0) {
+      throw new DataException('No quarter hour covered by every core type');
+    }
+
+    return array_keys($times);
+  }
+
+  /**
+   * Returns the times every one of a set of production types reaches, as a
+   * set in order, empty where there are none.
+   *
+   * @param array<string,array<string,float>> $series The series by type
+   * @param array<string>                     $codes  The types to require
+   *
+   * @return array<string,true>
+   */
+  private static function intersection(array $series, array $codes): array {
     $times = null;
 
     foreach ($codes as $code) {
@@ -633,13 +1010,11 @@ class Generation {
         : array_intersect_key($times, $values);
     }
 
-    if ($times === null || count($times) === 0) {
-      throw new DataException('No quarter hour covered by every core type');
-    }
+    $times = array_map(fn () => true, $times ?? []);
 
     ksort($times);
 
-    return array_keys($times);
+    return $times;
   }
 
   /**

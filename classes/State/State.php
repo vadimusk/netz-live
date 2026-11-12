@@ -37,6 +37,12 @@ class State {
    * @param int           $visits         The number of visits in the past year
    * @param bool           $visitsCoverYear Whether visits have been counted
    *                                        for a full year
+   * @param array<string,int> $estimatedAreas The control areas whose share of
+   *                                        the newest quarter hour is
+   *                                        estimated, because their operator
+   *                                        has not reported it, mapped to the
+   *                                        time of the last quarter hour each
+   *                                        did report
    */
   public function __construct(
     public readonly int    $time,
@@ -56,7 +62,8 @@ class State {
     public readonly array  $windMilestones,
     public readonly int    $windMilestonesSince,
     public readonly int    $visits,
-    public readonly bool   $visitsCoverYear
+    public readonly bool   $visitsCoverYear,
+    public readonly array  $estimatedAreas = []
   ) {
   }
 }

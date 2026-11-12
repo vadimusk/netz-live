@@ -12,6 +12,7 @@
 // Usage: php watchdog.php [--verbose]
 
 use KateMorley\Grid\Environment;
+use KateMorley\Grid\Data\Generation;
 
 spl_autoload_register(function ($class) {
   require_once(
@@ -181,6 +182,35 @@ function check(): ?string {
       $age / 3600,
       $latest
     );
+  }
+
+  // the data goes on advancing while one operator is silent, its share
+  // estimated, so the age of the newest quarter hour no longer shows that
+  // stall; how long ago the operator last reported does
+  $mask = (int)$connection->query(
+    'SELECT estimated FROM past_quarter_hours ORDER BY time DESC LIMIT 1'
+  )->fetch_row()[0];
+
+  foreach (array_keys(Generation::AREAS) as $bit => $name) {
+    if (($mask & (1 << $bit)) === 0) {
+      continue;
+    }
+
+    $reported = $connection->query(
+      'SELECT COALESCE(MAX(IF(estimated&' . (1 << $bit) . ',NULL,time)),MIN(time))'
+      . ' FROM past_quarter_hours'
+    )->fetch_row()[0];
+
+    $silent = time() - strtotime($reported . ' UTC');
+
+    if ($silent > STALE_AFTER) {
+      return sprintf(
+        '%s has not reported for %.1f hours, its share estimated (last quarter hour reported %s UTC)',
+        $name,
+        $silent / 3600,
+        $reported
+      );
+    }
   }
 
   return null;

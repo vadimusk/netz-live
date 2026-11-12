@@ -68,8 +68,39 @@ class Database {
       $this->getWindMilestones(),
       $this->getRecordsStart(),
       $this->getYearlyVisits(),
-      $this->getVisitsCoverYear()
+      $this->getVisitsCoverYear(),
+      $this->getEstimatedAreas((int)$latestMap['estimated'])
     );
+  }
+
+  /**
+   * Returns the control areas estimated in the newest quarter hour, mapped to
+   * the Unix timestamp of the last quarter hour each reported.
+   *
+   * @param int $mask The newest quarter hour's mask of estimated areas, a bit
+   *                  for each of Generation::AREAS in order
+   *
+   * @return array<string,int>
+   */
+  public function getEstimatedAreas(int $mask): array {
+    $areas = [];
+
+    foreach (array_keys(Generation::AREAS) as $bit => $name) {
+      if (($mask & (1 << $bit)) === 0) {
+        continue;
+      }
+
+      // past the oldest quarter hour kept the age is at least that, which
+      // is all the page and the watchdog need to know
+      $row = $this->connection->query(
+        'SELECT COALESCE(MAX(IF(estimated&' . (1 << $bit) . ',NULL,time)),MIN(time))'
+        . ' FROM past_quarter_hours'
+      )->fetch_row();
+
+      $areas[$name] = strtotime($row[0] . ' UTC');
+    }
+
+    return $areas;
   }
 
   /**

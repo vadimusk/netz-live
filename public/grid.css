@@ -507,6 +507,15 @@ dl {
         color: var(--stale);
         opacity: 1;
       }
+
+      /* the operator's name and how long it has been silent run longer than
+         the time above them, so this one wraps rather than widening the
+         column past a phone's width */
+      &.estimate {
+        margin-top: 0.25em;
+        white-space: normal;
+        text-wrap: balance;
+      }
     }
   }
 
