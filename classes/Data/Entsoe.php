@@ -656,6 +656,7 @@ class Entsoe {
         $last  = null;
         $held  = 0;
         $limit = $limited ? (self::HOLD_LIMIT[$type] ?? PHP_INT_MAX) : PHP_INT_MAX;
+        $final = count($points) === 0 ? 0 : max(array_keys($points));
 
         for ($index = 1; $index <= $steps; $index ++) {
           if (isset($points[$index])) {
@@ -671,8 +672,12 @@ class Entsoe {
 
           // past the limit the value is a placeholder rather than a reading,
           // so the quarter hour is left absent and the core-type check can see
-          // that the mix is incomplete
-          if ($held >= $limit) {
+          // that the mix is incomplete. Only after the period's last point,
+          // though: a value followed by another point was held for real, and
+          // a single control area holds one for far longer than the country
+          // does — limiting those left 83 quarter hours of October and
+          // November 2026 looking unreported by one operator or another
+          if ($index > $final && $held >= $limit) {
             continue;
           }
 
