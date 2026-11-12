@@ -26,6 +26,22 @@ spl_autoload_register(function ($class) {
 
 Environment::load(__DIR__ . '/.env');
 
+// one run at a time. Reading the four control areas, and while one of them
+// is silent the week and its forecast too, takes one to three minutes when
+// the platform is slow, and a run that outlasts the five minutes between
+// them would otherwise have the next one writing the same rows beside it.
+// A run that finds the last still going leaves it to finish and says so.
+// Where the lock cannot be opened at all, as in a development container
+// without the directory, the run goes ahead unguarded.
+const LOCK_FILE = '/var/lib/netz-live/update.lock';
+
+$lock = @fopen(LOCK_FILE, 'c');
+
+if ($lock !== false && !flock($lock, LOCK_EX | LOCK_NB)) {
+  echo date('c') . " Skipped: the previous update is still running\n";
+  exit;
+}
+
 // without the database there is nothing any of the steps below can do, so
 // this exits rather than throwing an uncaught fatal: the message stays
 // readable in the log, and the non-zero status lets the watchdog tell a
