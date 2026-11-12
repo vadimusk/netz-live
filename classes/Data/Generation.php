@@ -575,7 +575,9 @@ class Generation {
 
     foreach ($read as $name => $area) {
       foreach (['generation', 'consumption'] as $kind) {
-        $area[$kind] = self::checked($area[$kind], 0, self::MAXIMUM_GENERATION);
+        $area[$kind] = self::smoothed(
+          self::checked($area[$kind], 0, self::MAXIMUM_GENERATION)
+        );
       }
 
       $area['generation']['B16'] ??= [];
@@ -1115,6 +1117,65 @@ class Generation {
     }
 
     return self::complete($data, self::TRANSFER_COLUMNS);
+  }
+
+  /**
+   * Returns a set of series with each isolated spike replaced by the mean of
+   * the quarter hours either side, noting in the update log how many there
+   * were.
+   *
+   * A spike is a single value far from both its neighbours, on the same side
+   * of both, while they agree with each other: the shape of a submission
+   * fault rather than of anything a power station or the weather does. On
+   * 12 November 2026 TenneT filed its offshore wind as nought for the quarter
+   * hour of 08:15 UTC between 6.64 and 6.76GW, and the page showed the
+   * country's offshore wind falling from 7.4GW to 0.8 and back. Over the
+   * month before, across every type of every operator, that was the only
+   * value of this shape.
+   *
+   * It is replaced rather than dropped, because a core type left out would
+   * hold the whole operator back for that quarter hour. The newest value has
+   * no neighbour after it to be judged by, so a spike there stands until the
+   * next quarter hour arrives.
+   *
+   * @param array<string,array<string,float>> $series The series by type
+   *
+   * @return array<string,array<string,float>>
+   */
+  private static function smoothed(array $series): array {
+    $replaced = 0;
+
+    foreach ($series as $type => $values) {
+      ksort($values);
+
+      $times = array_keys($values);
+
+      for ($index = 1; $index < count($times) - 1; $index ++) {
+        $before = $values[$times[$index - 1]];
+        $value  = $values[$times[$index]];
+        $after  = $values[$times[$index + 1]];
+
+        // half the larger neighbour, and never under a gigawatt, so that the
+        // ordinary swings of small or idle types are left alone
+        $limit = max(1.0, max($before, $after) / 2);
+
+        if (
+          abs($value - $before) > $limit
+          && abs($value - $after) > $limit
+          && ($value - $before) * ($value - $after) > 0
+          && abs($before - $after) < $limit / 2
+        ) {
+          $series[$type][$times[$index]] = round(($before + $after) / 2, 3);
+          $replaced ++;
+        }
+      }
+    }
+
+    if ($replaced !== 0) {
+      echo '(replaced ' . $replaced . ' isolated spike' . ($replaced === 1 ? '' : 's') . ') ';
+    }
+
+    return $series;
   }
 
   /**
