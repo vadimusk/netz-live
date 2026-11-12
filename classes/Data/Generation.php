@@ -338,23 +338,32 @@ class Generation {
       echo '(week) ';
     }
 
+    // ENTSO-E is the fresher source, and also the one with a key that can
+    // expire and a format that can change. SMARD carries the same figures
+    // hours later, so falling back beats publishing nothing — but it is
+    // written into the update log rather than passing silently, because a
+    // fallback nobody notices is how the site ends up hours behind again.
+    //
+    // The generation and the flows fall back separately: a timeout among the
+    // dozen flow requests used to throw away a generation already read, and
+    // SMARD has no operator's figures to stand in with while one is silent.
+    // SMARD is a file per series per week, so it is never asked for the
+    // month, which would be over a hundred requests for revisions that can
+    // wait a day.
     try {
       $generation = self::readGeneration($from);
-      $transfers  = self::readTransfers($from);
     } catch (DataException $exception) {
-      // ENTSO-E is the fresher source, and also the one with a key that can
-      // expire and a format that can change. SMARD carries the same figures
-      // hours later, so falling back beats publishing nothing — but it is
-      // written into the update log rather than passing silently, because a
-      // fallback nobody notices is how the site ends up hours behind again.
       echo '(SMARD fallback: ' . $exception->getMessage() . ') ';
 
-      // SMARD is a file per series per week, so the month would be over a
-      // hundred requests, for revisions that can wait a day
-      $from = max($from, time() - self::LONG_PERIOD);
+      $generation = self::readGenerationFromSmard(max($from, time() - self::LONG_PERIOD));
+    }
 
-      $generation = self::readGenerationFromSmard($from);
-      $transfers  = self::readTransfersFromSmard($from);
+    try {
+      $transfers = self::readTransfers($from);
+    } catch (DataException $exception) {
+      echo '(SMARD fallback for flows: ' . $exception->getMessage() . ') ';
+
+      $transfers = self::readTransfersFromSmard(max($from, time() - self::LONG_PERIOD));
     }
 
     // flows are held to the quarter hours the generation reaches. They are
