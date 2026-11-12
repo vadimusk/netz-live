@@ -455,20 +455,28 @@ class Generation {
     $read = self::readAreas($from);
 
     // an operator that has stopped needs its last report, and the day before
-    // it, to be estimated from; a stall longer than the window would leave it
-    // with neither, so the week is read instead
+    // it, to be estimated from. Where the window does not reach that far back
+    // it is read again from there, and no further: an operator three hours
+    // behind needs three more hours, not the week. One with no report in the
+    // window at all is looked for over the week.
+    $needed = $from;
+
     foreach ($read as $area) {
       $covered = array_keys($area['covered']);
 
-      if (
-        $from > time() - self::LONG_PERIOD
-        && (count($covered) === 0 || self::seconds(end($covered)) < $from + 86400)
-      ) {
-        $from = time() - self::LONG_PERIOD;
-        $read = self::readAreas($from);
+      $needed = min(
+        $needed,
+        count($covered) === 0
+          ? time() - self::LONG_PERIOD
+          : self::seconds(end($covered)) - 86400 - 900
+      );
+    }
 
-        break;
-      }
+    $needed = max($needed, time() - self::LONG_PERIOD);
+
+    if ($needed < $from) {
+      $from = $needed;
+      $read = self::readAreas($from);
     }
 
     // the quarter hours at least MINIMUM_REPORTED of the four have reported
