@@ -124,6 +124,12 @@ class Forecast {
         echo '(no intraday forecast: ' . $exception->getMessage() . ') ';
       }
 
+      try {
+        self::fillFromAreas($series, $from);
+      } catch (DataException $exception) {
+        echo '(no operator forecasts: ' . $exception->getMessage() . ') ';
+      }
+
       $series = self::complete($series);
     } catch (DataException $exception) {
       echo '(Energy-Charts fallback: ' . $exception->getMessage() . ') ';
@@ -238,6 +244,122 @@ class Forecast {
     }
 
     echo '(' . count($filled) . ' quarter hours from the intraday forecast) ';
+  }
+
+  /**
+   * Fills what the day-ahead and intraday forecasts of solar and wind still
+   * leave empty from the four operators' own forecasts, estimating the share
+   * of any operator that has not filed one.
+   *
+   * The country's forecast is the sum of the four operators', and one that
+   * does not file leaves it empty: on 13 November 2026 Amprion filed neither
+   * its day-ahead nor its intraday forecast of solar and onshore wind, the
+   * other three did, and the band showed no estimate of the demand all night.
+   * The missing operator is taken at the share of the others' forecast it
+   * had over the window, which is what Generation does with a silent
+   * operator's pumped storage. Only quarter hours the demand forecast spans
+   * are filled, and only where at least one operator has filed.
+   *
+   * @param array<string,array<string,float>> $series The series, by type,
+   *                                                  modified in place
+   * @param int                               $from   The start of the window
+   *
+   * @throws DataException If the operators' forecasts could not be read
+   */
+  private static function fillFromAreas(array &$series, int $from): void {
+    $gaps = [];
+
+    foreach (array_keys($series[self::LOAD_TYPE] ?? []) as $time) {
+      foreach (self::KEYS as $type) {
+        if (!isset($series[$type][$time])) {
+          $gaps[$type][$time] = true;
+        }
+      }
+    }
+
+    if (count($gaps) === 0) {
+      return;
+    }
+
+    $areas = [];
+
+    foreach (Generation::AREAS as $name => $area) {
+      $areas[$name] = Entsoe::readGenerationForecasts($area[0], $from, time() + self::FUTURE);
+    }
+
+    $filled    = [];
+    $estimated = [];
+
+    foreach ($gaps as $type => $times) {
+      // where an operator files this type at all: Amprion and TransnetBW
+      // have no offshore wind, and are not estimated for it
+      $filers = array_keys(array_filter(
+        $areas,
+        fn ($forecasts) => count($forecasts[$type] ?? []) !== 0
+      ));
+
+      foreach (array_keys($times) as $time) {
+        $present = array_values(array_filter(
+          $filers,
+          fn ($name) => isset($areas[$name][$type][$time])
+        ));
+
+        if (count($present) === 0) {
+          continue;
+        }
+
+        $total = 0.0;
+
+        foreach ($present as $name) {
+          $total += $areas[$name][$type][$time];
+        }
+
+        foreach (array_diff($filers, $present) as $name) {
+          $total += self::share($areas, $name, $present, $type) * $total;
+          $estimated[$name] = true;
+        }
+
+        $series[$type][$time] = round($total, 3);
+        $filled[$time]        = true;
+      }
+    }
+
+    if (count($filled) !== 0) {
+      echo '(' . count($filled) . ' quarter hours from the operators\' forecasts'
+        . (count($estimated) === 0 ? '' : ', ' . implode(', ', array_keys($estimated)) . ' estimated')
+        . ') ';
+    }
+  }
+
+  /**
+   * Returns an operator's forecast of a type as a share of others' over the
+   * quarter hours all of them filed, or nought where there are none.
+   *
+   * @param array<string,array<string,array<string,float>>> $areas  The forecasts, by operator and type
+   * @param string                                           $name   The operator
+   * @param array<string>                                    $others The others
+   * @param string                                           $type   The type
+   */
+  private static function share(array $areas, string $name, array $others, string $type): float {
+    $own   = 0.0;
+    $total = 0.0;
+
+    foreach ($areas[$name][$type] as $time => $value) {
+      $sum = 0.0;
+
+      foreach ($others as $other) {
+        if (!isset($areas[$other][$type][$time])) {
+          continue 2;
+        }
+
+        $sum += $areas[$other][$type][$time];
+      }
+
+      $own   += $value;
+      $total += $sum;
+    }
+
+    return $total > 0.05 ? $own / $total : 0.0;
   }
 
   /**
