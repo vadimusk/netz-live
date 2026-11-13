@@ -588,6 +588,8 @@ class Generation {
         );
       }
 
+      $area['generation'] = self::unzeroed($area['generation']);
+
       $area['generation']['B16'] ??= [];
 
       self::assumeDarkness($area['generation']['B16'], $from);
@@ -672,6 +674,36 @@ class Generation {
   private static function estimateMissing(array $read, array &$values, array $times): array {
     $estimated = [];
 
+    // every operator's forecast, read once and only when something is to be
+    // estimated: the missing operator's own, and the others' to stand in for
+    // it where it has filed none. From a day before the first quarter hour
+    // missing, which takes in every anchor and the day a share is taken over
+    $first = null;
+    $last  = null;
+
+    foreach ($read as $area) {
+      foreach ($times as $time) {
+        if (!isset($area['covered'][$time])) {
+          $first = $first === null ? $time : min($first, $time);
+          $last  = $last === null ? $time : max($last, $time);
+        }
+      }
+    }
+
+    $forecasts = [];
+
+    if ($first !== null) {
+      try {
+        $forecasts = Entsoe::readForecastsByDomain(
+          array_map(fn ($area) => $area[0], self::AREAS),
+          self::seconds($first) - 86400,
+          self::seconds($last) + 900
+        );
+      } catch (DataException $exception) {
+        echo '(operator forecasts unavailable: ' . $exception->getMessage() . ') ';
+      }
+    }
+
     foreach ($read as $name => $area) {
       $missing = array_values(array_filter(
         $times,
@@ -684,20 +716,6 @@ class Generation {
 
       if (count($missing) === 0 || count($reported) === 0) {
         continue;
-      }
-
-      $forecasts = [];
-
-      try {
-        // from the hour before the first quarter hour missing, which takes
-        // in the anchor of every one after it
-        $forecasts = Entsoe::readGenerationForecasts(
-          self::AREAS[$name][0],
-          self::seconds($missing[0]) - 3600,
-          self::seconds(end($missing)) + 900
-        );
-      } catch (DataException $exception) {
-        echo '(' . $name . ' forecast unavailable: ' . $exception->getMessage() . ') ';
       }
 
       $index  = 0;
@@ -754,7 +772,7 @@ class Generation {
    * @param string                                           $anchor    The operator's last report before the time
    * @param string                                           $time      The time
    * @param array<string,array<string,array<string,float>>> $values    Every operator's values
-   * @param array<string,array<string,float>>                $forecasts The operator's forecasts
+   * @param array<string,array<string,array<string,float>>> $forecasts Every operator's forecasts
    * @param array                                            $read      Every operator's series, as readAreas returns them
    */
   private static function estimate(
@@ -769,7 +787,7 @@ class Generation {
     $last = $values[$name][$type][$anchor] ?? 0.0;
 
     if (isset(self::FORECAST_KEYS[$type])) {
-      $forecast = $forecasts[self::FORECAST_KEYS[$type]] ?? [];
+      $forecast = self::forecastFor($forecasts, $name, self::FORECAST_KEYS[$type], $anchor, $time);
 
       if (isset($forecast[$time], $forecast[$anchor])) {
         $weight = exp(-(self::seconds($time) - self::seconds($anchor)) / self::FORECAST_HANDOVER);
@@ -833,6 +851,88 @@ class Generation {
     }
 
     return $last;
+  }
+
+  /**
+   * Returns the forecast an operator's solar or wind is estimated from: its
+   * own where it covers both the anchor and the quarter hour, and otherwise
+   * the others' forecast scaled by the share of it the operator's own came
+   * to over the window.
+   *
+   * An operator that stops reporting can stop filing forecasts too: on
+   * 13 November 2026 Amprion filed none for solar or onshore wind. Measured
+   * over a month, its forecast taken as that share of the others' was 0.32GW
+   * out for solar and 1.06GW for onshore wind, against levels of 1.2 and
+   * 3.4GW: rough, but it moves with the weather where holding the last
+   * report does not.
+   *
+   * @param array<string,array<string,array<string,float>>> $forecasts Every operator's forecasts
+   * @param string                                           $name      The operator
+   * @param string                                           $key       The forecast's key
+   * @param string                                           $anchor    The anchor
+   * @param string                                           $time      The quarter hour estimated
+   *
+   * @return array<string,float>
+   */
+  private static function forecastFor(
+    array  $forecasts,
+    string $name,
+    string $key,
+    string $anchor,
+    string $time
+  ): array {
+    $own = $forecasts[$name][$key] ?? [];
+
+    if (isset($own[$time], $own[$anchor])) {
+      return $own;
+    }
+
+    static $proxies = [];
+
+    $cache = $name . $key;
+
+    if (isset($proxies[$cache])) {
+      return $proxies[$cache];
+    }
+
+    $others = array_filter(
+      array_keys($forecasts),
+      fn ($other) => $other !== $name && count($forecasts[$other][$key] ?? []) !== 0
+    );
+
+    $sums = [];
+
+    foreach ($forecasts[$others ? reset($others) : $name][$key] ?? [] as $at => $unused) {
+      $sum = 0.0;
+
+      foreach ($others as $other) {
+        if (!isset($forecasts[$other][$key][$at])) {
+          continue 2;
+        }
+
+        $sum += $forecasts[$other][$key][$at];
+      }
+
+      $sums[$at] = $sum;
+    }
+
+    $mine  = 0.0;
+    $total = 0.0;
+
+    foreach ($own as $at => $value) {
+      if (isset($sums[$at])) {
+        $mine  += $value;
+        $total += $sums[$at];
+      }
+    }
+
+    // an operator that has never filed this type has no share of it, and
+    // nothing to stand in for
+    $proxies[$cache] = $total > 0.05
+      ? array_map(fn ($sum) => $sum * $mine / $total, $sums)
+      : [];
+
+    return $proxies[$cache];
   }
 
   /**
@@ -1125,6 +1225,57 @@ class Generation {
     }
 
     return self::complete($data, self::TRANSFER_COLUMNS);
+  }
+
+  /**
+   * Returns a set of series without the wind figures that fall to exactly
+   * nought straight from a working level, noting in the update log how many
+   * there were.
+   *
+   * A fleet of thousands of turbines does not stop to the watt in a quarter
+   * hour, and it does not take a submission fault long to show this shape:
+   * TenneT filed its offshore wind as nought at 08:15 UTC on 12 November 2026
+   * between 6.6 and 6.8GW, and again from 02:15 on 13 November, after 5.2GW,
+   * for as long as it had reported. The first lay between two good values and
+   * was caught as a spike; the second was at the newest end, where a spike
+   * has nothing after it to be judged by. A nought straight after more than
+   * half a gigawatt, and every nought after it, is taken as unreported, so
+   * that the operator's wind is estimated instead. Over the month before,
+   * the noughts that came after calmer figures, 93 of them, were all left be.
+   *
+   * @param array<string,array<string,float>> $series The series by type
+   *
+   * @return array<string,array<string,float>>
+   */
+  private static function unzeroed(array $series): array {
+    $dropped = 0;
+
+    foreach (['B18', 'B19'] as $type) {
+      if (!isset($series[$type])) {
+        continue;
+      }
+
+      ksort($series[$type]);
+
+      $previous = null;
+
+      foreach ($series[$type] as $time => $value) {
+        if ($value <= 0.001 && $previous !== null && $previous > 0.5) {
+          unset($series[$type][$time]);
+          $dropped ++;
+
+          continue;
+        }
+
+        $previous = $value;
+      }
+    }
+
+    if ($dropped !== 0) {
+      echo '(dropped ' . $dropped . ' sudden nought' . ($dropped === 1 ? '' : 's') . ' in the wind) ';
+    }
+
+    return $series;
   }
 
   /**

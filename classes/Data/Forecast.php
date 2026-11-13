@@ -255,10 +255,10 @@ class Forecast {
    * does not file leaves it empty: on 13 November 2026 Amprion filed neither
    * its day-ahead nor its intraday forecast of solar and onshore wind, the
    * other three did, and the band showed no estimate of the demand all night.
-   * The missing operator is taken at the share of the others' forecast it
-   * had over the window, which is what Generation does with a silent
-   * operator's pumped storage. Only quarter hours the demand forecast spans
-   * are filled, and only where at least one operator has filed.
+   * The demand is filled the same way, since an operator that files none of
+   * it would leave nothing at all to estimate from. The missing operator is
+   * taken at the share of the others' forecast it had over the window, which
+   * is what Generation does with a silent operator's pumped storage.
    *
    * @param array<string,array<string,float>> $series The series, by type,
    *                                                  modified in place
@@ -267,30 +267,45 @@ class Forecast {
    * @throws DataException If the operators' forecasts could not be read
    */
   private static function fillFromAreas(array &$series, int $from): void {
-    $gaps = [];
+    $types = array_merge(self::KEYS, [self::LOAD_TYPE]);
 
-    foreach (array_keys($series[self::LOAD_TYPE] ?? []) as $time) {
-      foreach (self::KEYS as $type) {
+    // every quarter hour from the start of the window to now, or as far as
+    // any series reaches beyond it, is looked for in every series, the
+    // demand included, which the others' gaps were counted against before
+    $end = time();
+
+    foreach ($types as $type) {
+      foreach (array_keys($series[$type] ?? []) as $time) {
+        $end = max($end, strtotime(trim($time, '"') . ' UTC'));
+      }
+    }
+
+    $missing = false;
+
+    for ($at = intdiv($from + 899, 900) * 900; $at <= $end && !$missing; $at += 900) {
+      $time = Time::normaliseUnix($at, 15);
+
+      foreach ($types as $type) {
         if (!isset($series[$type][$time])) {
-          $gaps[$type][$time] = true;
+          $missing = true;
         }
       }
     }
 
-    if (count($gaps) === 0) {
+    if (!$missing) {
       return;
     }
 
-    $areas = [];
-
-    foreach (Generation::AREAS as $name => $area) {
-      $areas[$name] = Entsoe::readGenerationForecasts($area[0], $from, time() + self::FUTURE);
-    }
+    $areas = Entsoe::readForecastsByDomain(
+      array_map(fn ($area) => $area[0], Generation::AREAS),
+      $from,
+      time() + self::FUTURE
+    );
 
     $filled    = [];
     $estimated = [];
 
-    foreach ($gaps as $type => $times) {
+    foreach ($types as $type) {
       // where an operator files this type at all: Amprion and TransnetBW
       // have no offshore wind, and are not estimated for it
       $filers = array_keys(array_filter(
@@ -298,15 +313,21 @@ class Forecast {
         fn ($forecasts) => count($forecasts[$type] ?? []) !== 0
       ));
 
+      $times = [];
+
+      foreach ($filers as $name) {
+        $times += $areas[$name][$type];
+      }
+
       foreach (array_keys($times) as $time) {
+        if (isset($series[$type][$time])) {
+          continue;
+        }
+
         $present = array_values(array_filter(
           $filers,
           fn ($name) => isset($areas[$name][$type][$time])
         ));
-
-        if (count($present) === 0) {
-          continue;
-        }
 
         $total = 0.0;
 
@@ -314,8 +335,10 @@ class Forecast {
           $total += $areas[$name][$type][$time];
         }
 
+        $reported = $total;
+
         foreach (array_diff($filers, $present) as $name) {
-          $total += self::share($areas, $name, $present, $type) * $total;
+          $total += self::share($areas, $name, $present, $type) * $reported;
           $estimated[$name] = true;
         }
 

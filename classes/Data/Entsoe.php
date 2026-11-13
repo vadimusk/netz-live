@@ -223,30 +223,53 @@ class Entsoe {
   }
 
   /**
-   * Reads the day-ahead forecasts of solar and both winds for one domain, one
-   * of the four control areas within Germany, keyed as readForecasts keys
-   * them.
+   * Reads the day-ahead forecasts of solar, both winds and the load for
+   * several domains at once, in parallel: the four control areas within
+   * Germany, whose forecasts the country's is the sum of.
    *
-   * @param string $domain The domain
-   * @param int    $from   The earliest Unix timestamp of interest
-   * @param int    $to     The latest Unix timestamp of interest
+   * Returns an array mapping each key to what readForecasts returns for its
+   * domain.
    *
-   * @return array<string,array<string,float>>
+   * @param array<string,string> $domains Keys mapped to domains
+   * @param int                  $from    The earliest Unix timestamp of interest
+   * @param int                  $to      The latest Unix timestamp of interest
+   *
+   * @return array<string,array<string,array<string,float>>>
    *
    * @throws DataException If the data was invalid
    */
-  public static function readGenerationForecasts(
-    string $domain,
-    int    $from,
-    int    $to
+  public static function readForecastsByDomain(
+    array $domains,
+    int   $from,
+    int   $to
   ): array {
-    return self::forecasts(self::fetch([
-      self::query(
+    $queries = [];
+
+    foreach ($domains as $domain) {
+      $queries[] = self::query(
         ['documentType' => 'A69', 'processType' => 'A01', 'in_Domain' => $domain],
         $from,
         $to
-      )
-    ]));
+      );
+
+      $queries[] = self::query(
+        ['documentType' => 'A65', 'processType' => 'A01', 'outBiddingZone_Domain' => $domain],
+        $from,
+        $to
+      );
+    }
+
+    $bodies = self::fetch($queries);
+    $result = [];
+
+    foreach (array_keys($domains) as $position => $key) {
+      $result[$key] = self::forecasts([
+        $bodies[2 * $position],
+        $bodies[2 * $position + 1]
+      ]);
+    }
+
+    return $result;
   }
 
   /**
